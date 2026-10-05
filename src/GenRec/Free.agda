@@ -1,3 +1,5 @@
+{-# OPTIONS --type-in-type #-}
+
 module GenRec.Free where
 
 open import Haskell.Prelude
@@ -88,33 +90,38 @@ module _ (prog : RecProg' (Rec i o) i o) where
 
 
 -- variant that does not use induction-recursion
+
+module _ {i : Type} {o : @0 i → Type} where
+
+  -- Rec itself can serve as an description!
+  @0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
+  ⟦ Ret y'   ⟧ X y = y ≡ y'
+  ⟦ Call x k ⟧ X y = Σ (o x) λ z → X x z × ⟦ k z ⟧ X y
+
+
 module _ (prog : RecProg' (Rec i o) i o) where
 
-  data Graph {a : Type} (y : a) : Rec i o a → Type where
-    Ret  : Graph y (Ret y)
-    Call : ∀ {x y' k} →
-      Graph y' (prog x) →
-      Graph y (k y') →
-      Graph y (Call x k)
+  data @0 Graph (x : i) (y : o x) : Type where
+    con : ⟦ prog x ⟧ Graph y → Graph x y
 
-  runRecG       : ∀ x {@0 y} → @0 Graph y (prog x) → Singleton y
-  runRecGWorker : ∀ {@0 x y} (m : Rec i o (o x)) → @0 Graph y m → Singleton y
+  runRecG       : ∀ x {@0 y} → @0 Graph x y → Singleton y
+  runRecGWorker : ∀ {@0 x y} (m : Rec i o (o x)) → @0 ⟦ m ⟧ Graph y → Singleton y
 
-  runRecG x r = runRecGWorker (prog x) r
+  runRecG x (con r) = runRecGWorker (prog x) r
 
-  runRecGWorker (Ret y) Ret = sing y
-  runRecGWorker (Call x k) (Call r₁ r₂) =
+  runRecGWorker (Ret x) refl = sing x
+  runRecGWorker (Call x k) (z , (r₁ , r₂)) =
     case runRecG x r₁ of λ where
       (sing z) → runRecGWorker (k z) r₂
 
-  {-# COMPILE AGDA2HS runRecG       #-}
+  {-# COMPILE AGDA2HS runRecG #-}
   {-# COMPILE AGDA2HS runRecGWorker #-}
 
 --------------------------------------------------------------------------------
 -- Acc is a proposition
 -- It follows from the fact that the domain is "collapsible" in the sense of Edwin Brady's work
 
-module _ (prog : RecProg i o) where
+module _ (prog : RecProg' (Rec i o) i o) where
 
   isPropAcc       : ∀ {x} (rs rs' : Acc prog x) → rs ≡ rs'
   isPropAccInner  : ∀ {x} (rs rs' : AccInner prog x) → rs ≡ rs'
