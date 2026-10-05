@@ -2,6 +2,7 @@ module GenRec.Free where
 
 open import Haskell.Prelude
 open import Haskell.Extra.Sigma
+open import Haskell.Extra.Erase
 open import Haskell.Law.Equality using (cong; subst)
 
 open import GenRec.Class
@@ -53,7 +54,7 @@ instance
   {-# COMPILE AGDA2HS iFunctorRec     #-}
   {-# COMPILE AGDA2HS iApplicativeRec #-}
   {-# COMPILE AGDA2HS iMonadRec       #-}
-  {-# COMPILE AGDA2HS iMonadRecRec     #-}
+  {-# COMPILE AGDA2HS iMonadRecRec    #-}
 
 --------------------------------------------------------------------------------
 -- Bove-Capretta method
@@ -69,10 +70,10 @@ module _ (prog : RecProg' (Rec i o) i o) where
   runRec       : ∀ x → @0 Acc x → o x
   runRecWorker : ∀ {@0 x} (m : Rec i o (o x)) → @0 AccWorker m → o x
 
-  data Acc i where
-    acc : AccInner i → Acc i
+  data Acc x where
+    acc : AccInner x → Acc x
 
-  AccInner i = AccWorker (prog i)
+  AccInner x = AccWorker (prog x)
 
   AccWorker (Ret _)    = ⊤
   AccWorker (Call x k) = Σ (Acc x) λ r₁ → AccWorker (k (runRec x r₁))
@@ -82,8 +83,32 @@ module _ (prog : RecProg' (Rec i o) i o) where
   runRecWorker (Ret y)    tt        = y
   runRecWorker (Call x k) (r₁ , r₂) = runRecWorker (k (runRec x r₁)) r₂
 
-  {-# COMPILE AGDA2HS runRec #-}
+  {-# COMPILE AGDA2HS runRec       #-}
   {-# COMPILE AGDA2HS runRecWorker #-}
+
+
+-- variant that does not use induction-recursion
+module _ (prog : RecProg' (Rec i o) i o) where
+
+  data Graph {a : Type} (y : a) : Rec i o a → Type where
+    Ret  : Graph y (Ret y)
+    Call : ∀ {x y' k} →
+      Graph y' (prog x) →
+      Graph y (k y') →
+      Graph y (Call x k)
+
+  runRecG       : ∀ x {@0 y} → @0 Graph y (prog x) → Singleton y
+  runRecGWorker : ∀ {@0 x y} (m : Rec i o (o x)) → @0 Graph y m → Singleton y
+
+  runRecG x r = runRecGWorker (prog x) r
+
+  runRecGWorker (Ret y) Ret = sing y
+  runRecGWorker (Call x k) (Call r₁ r₂) =
+    case runRecG x r₁ of λ where
+      (sing z) → runRecGWorker (k z) r₂
+
+  {-# COMPILE AGDA2HS runRecG       #-}
+  {-# COMPILE AGDA2HS runRecGWorker #-}
 
 --------------------------------------------------------------------------------
 -- Acc is a proposition
