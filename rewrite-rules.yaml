@@ -1,0 +1,4 @@
+rewrites:
+  - from: "GenRec.Inline.inline"
+    to: "inline"
+    importing: "GHC.Exts"

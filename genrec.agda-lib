@@ -1,0 +1,4 @@
+name: genrec
+include: src
+depend: agda2hs-base standard-library
+flags: --erasure --no-import-sorts
