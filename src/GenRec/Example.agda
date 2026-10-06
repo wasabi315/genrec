@@ -2,8 +2,10 @@
 
 module GenRec.Example where
 
+open import Agda.Builtin.Size
 open import Haskell.Prelude hiding (_<_; All; _,_,_) renaming (_,_ to infixr 4 _,_)
 open import Haskell.Law.Equality using (cong; subst)
+open import Haskell.Extra.Refinement
 open import Haskell.Extra.Sigma renaming (_,_ to infixr 4 _,_)
 
 open import GenRec
@@ -32,7 +34,6 @@ module Quicksort where
     open import Data.Nat hiding (_+_; _*_)
     open import Data.Nat.Induction hiding (Acc; acc)
     open import Data.Nat.Properties
-    open import Data.Product
     open import Function using (_on_)
     open import Induction
     open import Induction.WellFounded hiding (Acc; acc)
@@ -63,10 +64,23 @@ module Quicksort where
           , rs (s≤s (filter≼ (not ∘ (_<= x)) xs))
           , tt )
 
+    @0 ∀QuicksortAcc' : ⦃ _ : Ord a ⦄ (xs : List a) → Acc (λ x → quicksort' x .code) xs
+    ∀QuicksortAcc' = ≺-rec _ (Acc λ x → quicksort' x .code) λ where
+      [] rs → acc tt
+      (x ∷ xs) rs →
+        acc
+          ( rs (s≤s (filter≼ (_<= x) xs))
+          , rs (s≤s (filter≼ (not ∘ (_<= x)) xs))
+          , tt )
+
 
   quicksort : ⦃ _ : Ord a ⦄ → List a → List a
   quicksort xs = runRec quicksort' xs (∀QuicksortAcc xs)
   {-# COMPILE AGDA2HS quicksort #-}
+
+  quicksortTotal : ⦃ _ : Ord a ⦄ → List a → List a
+  quicksortTotal xs = runTotalInline quicksort' xs (∀QuicksortAcc' xs)
+  {-# COMPILE AGDA2HS quicksortTotal #-}
 
 --------------------------------------------------------------------------------
 -- Example: Paulson's normalisation function for if expressions
@@ -233,7 +247,6 @@ module Norm where
             e₂ = runRec norm (If el' th el) r₂
             r₃ = rs (lemma5 co th' el' th el e₁ e₂ (norm≼ _ r₁) (norm≼ _ r₂))
         in acc (r₁ , r₂ , r₃ , tt)
-
 
   normalise : Expr → Expr
   normalise e = runRec norm e (∀NormAcc e)

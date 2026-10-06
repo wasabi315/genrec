@@ -88,36 +88,32 @@ module _ (prog : RecProg' (Rec i o) i o) where
 
 
 -- variant that does not use induction-recursion
+-- Rec itself can serve as a description that generates inductive evaluation graphs!
 
-module _ {i : Type} {o : @0 i → Type} where
-
-  -- Rec itself can serve as an description!
-  @0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
-  ⟦ Ret y'   ⟧ X y = y ≡ y'
-  ⟦ Call x k ⟧ X y = Σ[ z ∈ o x ] X x z × ⟦ k z ⟧ X y
-
+@0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
+⟦ Ret y'   ⟧ X y = y ≡ y'
+⟦ Call x k ⟧ X y = Σ[ z ∈ _ ] X x z × ⟦ k z ⟧ X y
 
 module _ (prog : RecProg' (Rec i o) i o) where
 
-  data @0 Graph (x : i) (y : o x) : Type where
+  data Graph (x : i) (y : o x) : Type where
     con : ⟦ prog x ⟧ Graph y → Graph x y
 
   runRecG       : ∀ x {@0 y} → @0 Graph x y → Singleton y
   runRecGWorker : ∀ {@0 x y} (m : Rec i o (o x)) → @0 ⟦ m ⟧ Graph y → Singleton y
 
-  runRecG x (con r) = runRecGWorker (prog x) r
+  runRecG x (con grf) = runRecGWorker (prog x) grf
 
   runRecGWorker (Ret x) refl = sing x
-  runRecGWorker (Call x k) (z , (r₁ , r₂)) =
-    case runRecG x r₁ of λ where
-      (sing z) → runRecGWorker (k z) r₂
+  runRecGWorker (Call x k) (z , (grf₁ , grf₂)) =
+    case runRecG x grf₁ of λ where
+      (sing z) → runRecGWorker (k z) grf₂
 
   {-# COMPILE AGDA2HS runRecG #-}
   {-# COMPILE AGDA2HS runRecGWorker #-}
 
 --------------------------------------------------------------------------------
 -- Acc is a proposition
--- It follows from the fact that the domain is "collapsible" in the sense of Edwin Brady's work
 
 module _ (prog : RecProg' (Rec i o) i o) where
 

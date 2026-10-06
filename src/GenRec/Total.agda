@@ -7,12 +7,12 @@ open import Haskell.Prelude hiding (s; t)
 open import Haskell.Extra.Sigma
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
-open import Haskell.Law.Equality using (cong; subst)
+open import Haskell.Law.Equality using (subst)
 open import Haskell.Prim.Thunk
 
 open import GenRec.Class
 open import GenRec.Inline
-open import GenRec.Free
+open import GenRec.Free hiding (Graph)
 
 {-# FOREIGN AGDA2HS
 import GenRec.Class
@@ -26,78 +26,124 @@ private
 
 --------------------------------------------------------------------------------
 
-module @0 _ (prog : RecProg' (Rec i o) i o) where
+module GraphOf (@0 recCode : RecProg' (Rec i o) i o) where
 
-  GraphS : (s : Size) (x : i) (y : o x) → Type
-  data GraphS' (s : Size) (desc : Rec i o a) (y : a) : Type
+  @0 Graph : (s : Size) (x : i) (y : o x) → Type
+  data @0 Graph' (s : Size) (code : Rec i o a) (y : a) : Type
 
-  GraphS s x y = GraphS' s (prog x) y
+  Graph s x y = Graph' s (recCode x) y
 
-  data GraphS' s desc y where
-    con : {@0 t : Size< s} → ⟦ desc ⟧ (GraphS t) y → GraphS' s desc y
+  data Graph' s code y where
+    con : {@0 t : Size< s} → ⟦ code ⟧ (Graph t) y → Graph' s code y
+
+  -- given a evaluation graph described by 'code', realise the result computationally
+  Eval : @0 Rec i o a → @0 Size → Type
+  Eval code s = ∀ {@0 y} → @0 Graph' s code y → Singleton y
+  {-# COMPILE AGDA2HS Eval inline #-}
 
 
-@0 split' : {prog : RecProg' (Rec i o) i o} (m : Rec i o a) (k : a → Rec i o b) (z : b)
-  → ⟦ m >>= k ⟧ (GraphS prog s) z
-  → Σ[ x ∈ a ] ⟦ m ⟧ (GraphS prog s) x × ⟦ k x ⟧ (GraphS prog s) z
-split' (Ret y) k z r = y , (refl , r)
-split' (Call x j) k z (y , (r₁ , r₂)) =
-  let w , (r₃ , r₄) = split' (j y) k z r₂ in
-  w , ((y , (r₁ , r₃)) , r₄)
+module @0 _ {recCode : RecProg' (Rec i o) i o} where
+  open GraphOf recCode
 
-@0 split : {prog : RecProg' (Rec i o) i o} (m : Rec i o a) (k : a → Rec i o b) (z : b)
-  → GraphS' prog s (m >>= k) z
-  → Σ[ x ∈ a ] GraphS' prog s m x × GraphS' prog s (k x) z
-split m k z (con r) =
-  let y , (r₁ , r₂) = split' m k z r in
-  y , (con r₁ , con r₂)
+  -- invert Graph
+
+  invertRet : {x y : a}
+    → Graph' s (Ret x) y
+    → y ≡ x
+  invertRet (con eq) = eq
+
+  invertBind' : (code₁ : Rec i o a) (code₂ : a → Rec i o b) (y : b)
+    → ⟦ code₁ >>= code₂ ⟧ (Graph s) y
+    → Σ[ x ∈ a ] ⟦ code₁ ⟧ (Graph s) x × ⟦ code₂ x ⟧ (Graph s) y
+  invertBind' (Ret x) _ z grf = x , (refl , grf)
+  invertBind' (Call x code₁) code₂ y (z , (grf₁ , grf₂)) =
+    let _ , (grf₃ , grf₄) = invertBind' (code₁ z) code₂ y grf₂ in
+    _ , ((_ , (grf₁ , grf₃)) , grf₄)
+
+  invertBind : (code₁ : Rec i o a) (code₂ : a → Rec i o b) {y : b}
+    → Graph' s (code₁ >>= code₂) y
+    → Σ[ x ∈ a ] Graph' s code₁ x × Graph' s (code₂ x) y
+  invertBind code₁ code₂ {y} (con grf) =
+    let _ , (grf₁ , grf₂) = invertBind' code₁ code₂ y grf in
+    _ , (con grf₁ , con grf₂)
+
+  -- Convert Acc to Graph
+
+  Acc→Graph : ∀ x (rs : Acc recCode x)
+    → Graph ∞ x (runRec recCode x rs)
+
+  Acc→Graph' : ∀ {x} (m : Rec i o (o x)) (rs : AccWorker recCode m)
+    → Graph' ∞ m (runRecWorker recCode m rs)
+
+  Acc→Graph x (acc rs) = Acc→Graph' (recCode x) rs
+
+  Acc→Graph' (Ret y) tt = con refl
+  Acc→Graph' (Call x k) (r₁ , r₂)
+    with ih₁ ← Acc→Graph x r₁
+    with con ih₂ ← Acc→Graph' (k (runRec recCode x r₁)) r₂
+    = con (_ , (ih₁ , ih₂))
+
+--------------------------------------------------------------------------------
 
 record Total (i : Type) (o : @0 i → Type) (a : Type) : Type where
   no-eta-equality
   field
-    @0 desc : Rec i o a
-    run : ∀ {@0 prog : RecProg' (Rec i o) i o}
-      → Thunk (λ t → ∀ x {@0 y} → @0 GraphS prog t x y → Singleton y) s
-      → ∀ {@0 y} → @0 GraphS' prog s desc y → Singleton y
+    @0 code : Rec i o a
+    unTotal :
+      -- for any code describing the graph of a recursive program
+      {@0 recCode : RecProg' (Rec i o) i o} (let open GraphOf recCode)
+      -- given a function that realises the result of 'recCode x'
+      → Thunk (λ t → ∀ x → Eval (recCode x) t) s
+      -- realise the result of 'code'
+      → Eval code s
+
+module _ (prog : RecProg' (Total i o) i o) where
+
+  private
+    @0 recCode : RecProg' (Rec i o) i o
+    recCode x = prog x .Total.code
+
+  open GraphOf recCode
+
+  runTotal : ∀ x → @0 Acc recCode x → o x
+  runTotal = λ x rs → go .force x (Acc→Graph x rs) .value
+    where
+      go : Thunk (λ t → ∀ x → Eval (recCode x) t) s
+      go .force x r = prog x .Total.unTotal {recCode = recCode} go r
+  {-# COMPILE AGDA2HS runTotal #-}
+  {-# FOREIGN AGDA2HS {-# INLINE runTotal #-} #-}
+
+  runTotalInline : ∀ x → @0 Acc recCode x → o x
+  runTotalInline = λ x rs → go .force x (Acc→Graph x rs) .value
+    where
+      go : Thunk (λ t → ∀ x → Eval (recCode x) t) s
+      go .force x r = inline prog x .Total.unTotal {recCode = recCode} go r
+  {-# COMPILE AGDA2HS runTotalInline #-}
+  {-# FOREIGN AGDA2HS {-# INLINE runTotalInline #-} #-}
+
 
 open Total public
 
 {-# COMPILE AGDA2HS Total newtype #-}
 
-module _ (prog : RecProg' (Total i o) i o) where
-
-  runTotal : ∀ x {@0 y} → @0 GraphS (λ x → prog x .desc) ∞ x y → Singleton y
-  runTotal = go .force
-    where
-      go : Thunk (λ t → ∀ x {@0 y} → @0 GraphS (λ x → prog x .desc) t x y → Singleton y) s
-      go .force x r = inline prog x .run {prog = λ x → prog x .desc} go r
-  {-# COMPILE AGDA2HS runTotal #-}
-
-
 pureTotal : a → Total i o a
 pureTotal x = record
-  { desc = pure x
-  ; run  = λ where _ (con refl) → sing x
+  { code = Ret x
+  ; unTotal = λ _ g → x ⟨ invertRet g ⟩
   }
 {-# COMPILE AGDA2HS pureTotal #-}
 
 bindTotal : Total i o a → (a → Total i o b) → Total i o b
 bindTotal m k = record
-  { desc = m .desc >>= λ x → k x .desc
-  ; run = λ {s = s} self {y} r →
-      let @0 h : _
-          h = split (m .desc) (λ x → k x .desc) y r
-      in case m .run self (h .snd .fst) of λ where
-        (z ⟨ eq ⟩) → k z .run self (subst (λ w → GraphS' _ s (k w .desc) _) eq (h .snd .snd))
+  { code = m .code >>= λ x → k x .code
+  ; unTotal = λ {s = s} {recCode} self {y} g →
+      let open GraphOf recCode
+          @0 gs : Σ[ x ∈ _ ] Graph' s (m .code) x × Graph' s (k x .code) y
+          gs = invertBind (m .code) (λ x → k x .code) g
+          x ⟨ eq ⟩ = m .unTotal self (gs .snd .fst)
+      in k x .unTotal self (subst (λ z → Graph' s (k z .code) _) eq (gs .snd .snd))
   }
 {-# COMPILE AGDA2HS bindTotal #-}
-
-recurseTotal : ∀ x → Total i o (o x)
-recurseTotal x = record
-  { desc = recurse x
-  ; run  = λ where self (con (_ , (r , refl))) → self .force x r
-  }
-{-# COMPILE AGDA2HS recurseTotal #-}
 
 instance
   iDefaultFunctorTotal : DefaultFunctor (Total i o)
@@ -120,7 +166,10 @@ instance
   iMonadTotal = record {DefaultMonad iDefaultMonadTotal}
 
   iMonadRecTotal : MonadRec i o (Total i o)
-  iMonadRecTotal .MonadRec.recurse = recurseTotal
+  iMonadRecTotal .recurse x = record
+    { code = Call x Ret
+    ; unTotal = λ where self (GraphOf.con (_ , (grf , refl))) → self .force x grf
+    }
 
   {-# COMPILE AGDA2HS iFunctorTotal     #-}
   {-# COMPILE AGDA2HS iApplicativeTotal #-}

@@ -67,30 +67,34 @@ module _ {i : Type} {o : @0 i → Type} where
   {-# FOREIGN AGDA2HS {-# INLINE runFueledInline #-} #-}
 
 
+pureFueled : a → Fueled i o a
+pureFueled x = record
+  { unFueled = λ _ _ → Just x
+  }
+{-# COMPILE AGDA2HS pureFueled #-}
+
+bindFueled : Fueled i o a → (a → Fueled i o b) → Fueled i o b
+bindFueled m k = record
+  { unFueled = λ self n → m .unFueled self n >>= λ x → k x .unFueled self n
+  }
+{-# COMPILE AGDA2HS bindFueled #-}
+
 instance
   iDefaultFunctorFueled : DefaultFunctor (Fueled i o)
-  iDefaultFunctorFueled .DefaultFunctor.fmap f m = record
-    { unFueled = λ self n → f <$> m .unFueled self n
-    }
+  iDefaultFunctorFueled .DefaultFunctor.fmap f m = bindFueled m (pureFueled ∘ f)
 
   iFunctorFueled : Functor (Fueled i o)
   iFunctorFueled = record {DefaultFunctor iDefaultFunctorFueled}
 
   iDefaultApplicativeFueled : DefaultApplicative (Fueled i o)
-  iDefaultApplicativeFueled .DefaultApplicative.pure a = record
-    { unFueled = λ _ _ → Just a
-    }
-  iDefaultApplicativeFueled .DefaultApplicative._<*>_ mf m = record
-    { unFueled = λ self n → mf .unFueled self n <*> m .unFueled self n
-    }
+  iDefaultApplicativeFueled .DefaultApplicative.pure = pureFueled
+  iDefaultApplicativeFueled .DefaultApplicative._<*>_ mf m = bindFueled mf (_<$> m)
 
   iApplicativeFueled : Applicative (Fueled i o)
   iApplicativeFueled = record {DefaultApplicative iDefaultApplicativeFueled}
 
   iDefaultMonadFueled : DefaultMonad (Fueled i o)
-  iDefaultMonadFueled .DefaultMonad._>>=_ m k = record
-    { unFueled = λ self n → m .unFueled self n >>= λ x → k x .unFueled self n
-    }
+  iDefaultMonadFueled .DefaultMonad._>>=_ = bindFueled
 
   iMonadFueled : Monad (Fueled i o)
   iMonadFueled = record {DefaultMonad iDefaultMonadFueled}

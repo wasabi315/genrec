@@ -45,30 +45,34 @@ module _ {i : Type} {o : @0 i → Type} where
   {-# FOREIGN AGDA2HS {-# INLINE runDirectInline #-} #-}
 
 
+pureDirect : a → Direct i o a
+pureDirect x = record
+  { unDirect = λ _ → x
+  }
+{-# COMPILE AGDA2HS pureDirect #-}
+
+bindDirect : Direct i o a → (a → Direct i o b) → Direct i o b
+bindDirect m k = record
+  { unDirect = λ self → k (m .unDirect self) .unDirect self
+  }
+{-# COMPILE AGDA2HS bindDirect #-}
+
 instance
   iDefaultFunctorDirect : DefaultFunctor (Direct i o)
-  iDefaultFunctorDirect .DefaultFunctor.fmap f m = record
-    { unDirect = f ∘ m .unDirect
-    }
+  iDefaultFunctorDirect .DefaultFunctor.fmap f m = bindDirect m (pureDirect ∘ f)
 
   iFunctorDirect : Functor (Direct i o)
   iFunctorDirect = record {DefaultFunctor iDefaultFunctorDirect}
 
   iDefaultApplicativeDirect : DefaultApplicative (Direct i o)
-  iDefaultApplicativeDirect .DefaultApplicative.pure a = record
-    { unDirect = λ _ → a
-    }
-  iDefaultApplicativeDirect .DefaultApplicative._<*>_ mf m = record
-    { unDirect = λ self → mf .unDirect self (m .unDirect self)
-    }
+  iDefaultApplicativeDirect .DefaultApplicative.pure = pureDirect
+  iDefaultApplicativeDirect .DefaultApplicative._<*>_ mf m = bindDirect mf (_<$> m)
 
   iApplicativeDirect : Applicative (Direct i o)
   iApplicativeDirect = record {DefaultApplicative iDefaultApplicativeDirect}
 
   iDefaultMonadDirect : DefaultMonad (Direct i o)
-  iDefaultMonadDirect .DefaultMonad._>>=_ m k = record
-    { unDirect = λ self → k (m .unDirect self) .unDirect self
-    }
+  iDefaultMonadDirect .DefaultMonad._>>=_ = bindDirect
 
   iMonadDirect : Monad (Direct i o)
   iMonadDirect = record {DefaultMonad iDefaultMonadDirect}
