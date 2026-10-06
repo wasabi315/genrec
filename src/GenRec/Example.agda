@@ -55,32 +55,18 @@ module Quicksort where
       ... | True  = s≤s (filter≼ p xs)
       ... | False = ≤-trans (filter≼ p xs) (m≤n+m _ 1)
 
-    ∀QuicksortAcc : ⦃ _ : Ord a ⦄ (xs : List a) → Acc quicksort' xs
-    ∀QuicksortAcc = ≺-rec _ (Acc quicksort') λ where
+    @0 ∀QuicksortAcc : ⦃ _ : Ord a ⦄ (xs : List a) → Acc (λ x → quicksort' x .code) xs
+    ∀QuicksortAcc = ≺-rec _ (Acc λ x → quicksort' x .code) λ where
       [] rs → acc tt
       (x ∷ xs) rs →
         acc
           ( rs (s≤s (filter≼ (_<= x) xs))
           , rs (s≤s (filter≼ (not ∘ (_<= x)) xs))
           , tt )
-
-    @0 ∀QuicksortAcc' : ⦃ _ : Ord a ⦄ (xs : List a) → Acc (λ x → quicksort' x .code) xs
-    ∀QuicksortAcc' = ≺-rec _ (Acc λ x → quicksort' x .code) λ where
-      [] rs → acc tt
-      (x ∷ xs) rs →
-        acc
-          ( rs (s≤s (filter≼ (_<= x) xs))
-          , rs (s≤s (filter≼ (not ∘ (_<= x)) xs))
-          , tt )
-
 
   quicksort : ⦃ _ : Ord a ⦄ → List a → List a
-  quicksort xs = runRec quicksort' xs (∀QuicksortAcc xs)
+  quicksort xs = runTotalInline quicksort' xs (∀QuicksortAcc xs)
   {-# COMPILE AGDA2HS quicksort #-}
-
-  quicksortTotal : ⦃ _ : Ord a ⦄ → List a → List a
-  quicksortTotal xs = runTotalInline quicksort' xs (∀QuicksortAcc' xs)
-  {-# COMPILE AGDA2HS quicksortTotal #-}
 
 --------------------------------------------------------------------------------
 -- Example: Paulson's normalisation function for if expressions
@@ -200,20 +186,20 @@ module Norm where
           ∣ co ∣ * suc (∣ th' ∣ + ∣ el' ∣) * suc (∣ th ∣ + ∣ el ∣)
         ∎
 
-      norm≼ : ∀ e rs → runRec norm e rs ≼ e
+      @0 norm≼ : ∀ e (rs : Acc (λ x → norm x .code) e) → runRec (λ x → norm x .code) e rs ≼ e
       norm≼ (Atom _) (acc _) = ≤-refl
       norm≼ (If (Atom _) th el) (acc (r₁ , r₂ , tt)) =
         s≤s (+-monoˡ-≤ _ (+-mono-≤ ih₁ ih₂))
         where
-          ih₁ : runRec norm th r₁ ≼ th
-          ih₂ : runRec norm el r₂ ≼ el
+          ih₁ : runRec (λ x → norm x .code) th r₁ ≼ th
+          ih₂ : runRec (λ x → norm x .code) el r₂ ≼ el
           ih₁ = norm≼ th r₁
           ih₂ = norm≼ el r₂
       norm≼ (If (If co th' el') th el) (acc (r₁ , r₂ , r₃ , tt))
-        using e₁ ← runRec norm (If th' th el) r₁
-        using e₂ ← runRec norm (If el' th el) r₂ =
+        using e₁ ← runRec (λ x → norm x .code) (If th' th el) r₁
+        using e₂ ← runRec (λ x → norm x .code) (If el' th el) r₂ =
         begin
-          ∣ runRec norm (If co e₁ e₂) r₃ ∣
+          ∣ runRec (λ x → norm x .code) (If co e₁ e₂) r₃ ∣
         ≤⟨ ih₃ ⟩
           ∣ co ∣ * suc (∣ e₁ ∣ + ∣ e₂ ∣)
         ≤⟨ *-monoʳ-≤ ∣ co ∣ (s≤s (+-mono-≤ ih₁ ih₂)) ⟩
@@ -228,13 +214,13 @@ module Norm where
         where
           ih₁ : e₁ ≼ If th' th el
           ih₂ : e₂ ≼ If el' th el
-          ih₃ : runRec norm (If co e₁ e₂) r₃ ≼ If co e₁ e₂
+          ih₃ : runRec (λ x → norm x .code) (If co e₁ e₂) r₃ ≼ If co e₁ e₂
           ih₁ = norm≼ (If th' th el) r₁
           ih₂ = norm≼ (If el' th el) r₂
           ih₃ = norm≼ (If co e₁ e₂) r₃
 
-    ∀NormAcc : ∀ e → Acc norm e
-    ∀NormAcc = ≺-rec _ (Acc norm) λ where
+    @0 ∀NormAcc : ∀ e → Acc (λ x → norm x .code) e
+    ∀NormAcc = ≺-rec _ (Acc λ x → norm x .code) λ where
       (Atom _) _ → acc tt
       (If (Atom x) th el) rs →
         let r₁ = rs (lemma1 x th el)
@@ -242,12 +228,12 @@ module Norm where
         in acc (r₁ , r₂ , tt)
       (If (If co th' el') th el) rs →
         let r₁ = rs (lemma3 co th' el' th el)
-            e₁ = runRec norm (If th' th el) r₁
+            e₁ = runRec (λ x → norm x .code) (If th' th el) r₁
             r₂ = rs (lemma4 co th' el' th el)
-            e₂ = runRec norm (If el' th el) r₂
+            e₂ = runRec (λ x → norm x .code) (If el' th el) r₂
             r₃ = rs (lemma5 co th' el' th el e₁ e₂ (norm≼ _ r₁) (norm≼ _ r₂))
         in acc (r₁ , r₂ , r₃ , tt)
 
   normalise : Expr → Expr
-  normalise e = runRec norm e (∀NormAcc e)
+  normalise e = runTotalInline norm e (∀NormAcc e)
   {-# COMPILE AGDA2HS normalise #-}
