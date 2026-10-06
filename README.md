@@ -2,7 +2,7 @@
 
 General recursion library compatible with `agda2hs`. Extracts to efficient code.
 
-See [GenRec.Example](/src/GenRec/Example.agda) for examples.
+See [GenRec.Example](/src/GenRec/Example.agda) for examples and [lib/](/lib/) for generated Haskell code.
 
 ## Reference
 
