@@ -60,57 +60,52 @@ instance
 -- Bove-Capretta method
 -- The specialized accessibility predicate is constructed on the fly from a given recursive program
 
-module _ (prog : RecProg' (Rec i o) i o) where
+data Acc (prog : RecProg' (Rec i o) i o) (x : i) : Type
+AccInner  : (prog : RecProg' (Rec i o) i o) (x : i) → Type
+AccWorker : (prog : RecProg' (Rec i o) i o) (m : Rec i o a) → Type
 
-  data Acc (x : i) : Type
-  AccInner  : (x : i) → Type
-  AccWorker : ∀ {x} (m : Rec i o (o x)) → Type
+-- Agda guarantees that the domain has no computational content and erases it at runtime
+runRec       : ∀ prog (x : i) → @0 Acc prog x → o x
+runRecWorker : ∀ prog (m : Rec i o a) → @0 AccWorker prog m → a
 
-  -- Agda guarantees that the domain has no computational content and erases it at runtime
-  runRec       : ∀ x → @0 Acc x → o x
-  runRecWorker : ∀ {@0 x} (m : Rec i o (o x)) → @0 AccWorker m → o x
+data Acc prog x where
+  acc : AccInner prog x → Acc prog x
 
-  data Acc x where
-    acc : AccInner x → Acc x
+AccInner prog x = AccWorker prog (prog x)
 
-  AccInner x = AccWorker (prog x)
+AccWorker prog (Ret _)    = ⊤
+AccWorker prog (Call x k) = Σ (Acc prog x) λ r₁ → AccWorker prog (k (runRec prog x r₁))
 
-  AccWorker (Ret _)    = ⊤
-  AccWorker (Call x k) = Σ (Acc x) λ r₁ → AccWorker (k (runRec x r₁))
+runRec prog x (acc rs) = runRecWorker prog (prog x) rs
 
-  runRec x (acc rs) = runRecWorker (prog x) rs
+runRecWorker prog (Ret y)    tt        = y
+runRecWorker prog (Call x k) (r₁ , r₂) = runRecWorker prog (k (runRec prog x r₁)) r₂
 
-  runRecWorker (Ret y)    tt        = y
-  runRecWorker (Call x k) (r₁ , r₂) = runRecWorker (k (runRec x r₁)) r₂
-
-  {-# COMPILE AGDA2HS runRec       #-}
-  {-# COMPILE AGDA2HS runRecWorker #-}
-
+{-# COMPILE AGDA2HS runRec       #-}
+{-# COMPILE AGDA2HS runRecWorker #-}
 
 -- variant that does not use induction-recursion
--- Rec itself can serve as a description that generates inductive evaluation graphs!
+-- Rec itself can serve as a description that generates inductive graphs!
 
 @0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
 ⟦ Ret y'   ⟧ X y = y ≡ y'
 ⟦ Call x k ⟧ X y = Σ[ z ∈ _ ] X x z × ⟦ k z ⟧ X y
 
-module _ (prog : RecProg' (Rec i o) i o) where
+data Graph (prog : RecProg' (Rec i o) i o) (x : i) (y : o x) : Type where
+  con : ⟦ prog x ⟧ (Graph prog) y → Graph prog x y
 
-  data Graph (x : i) (y : o x) : Type where
-    con : ⟦ prog x ⟧ Graph y → Graph x y
+runRecG       : ∀ prog (x : i) {@0 y : o x} → @0 Graph prog x y → Singleton y
+runRecGWorker : ∀ prog {@0 y} (m : Rec i o a) → @0 ⟦ m ⟧ (Graph prog) y → Singleton y
 
-  runRecG       : ∀ x {@0 y} → @0 Graph x y → Singleton y
-  runRecGWorker : ∀ {@0 x y} (m : Rec i o (o x)) → @0 ⟦ m ⟧ Graph y → Singleton y
+runRecG prog x (con grf) = runRecGWorker prog (prog x) grf
 
-  runRecG x (con grf) = runRecGWorker (prog x) grf
+runRecGWorker prog (Ret x) refl = sing x
+runRecGWorker prog (Call x k) (z , (grf₁ , grf₂)) =
+  case runRecG prog x grf₁ of λ where
+    (sing z) → runRecGWorker prog (k z) grf₂
 
-  runRecGWorker (Ret x) refl = sing x
-  runRecGWorker (Call x k) (z , (grf₁ , grf₂)) =
-    case runRecG x grf₁ of λ where
-      (sing z) → runRecGWorker (k z) grf₂
-
-  {-# COMPILE AGDA2HS runRecG #-}
-  {-# COMPILE AGDA2HS runRecGWorker #-}
+{-# COMPILE AGDA2HS runRecG #-}
+{-# COMPILE AGDA2HS runRecGWorker #-}
 
 --------------------------------------------------------------------------------
 -- Acc is a proposition
@@ -119,7 +114,7 @@ module _ (prog : RecProg' (Rec i o) i o) where
 
   isPropAcc       : ∀ {x} (rs rs' : Acc prog x) → rs ≡ rs'
   isPropAccInner  : ∀ {x} (rs rs' : AccInner prog x) → rs ≡ rs'
-  isPropAccWorker : ∀ {x} (m : Rec i o (o x)) (rs rs' : AccWorker prog m) → rs ≡ rs'
+  isPropAccWorker : (m : Rec i o a) (rs rs' : AccWorker prog m) → rs ≡ rs'
 
   isPropAcc (acc rs) (acc rs') = cong acc (isPropAccInner rs rs')
 

@@ -72,7 +72,7 @@ module @0 _ {recCode : RecProg' (Rec i o) i o} where
   Acc→Graph : ∀ x (rs : Acc recCode x)
     → Graph ∞ x (runRec recCode x rs)
 
-  Acc→Graph' : ∀ {x} (m : Rec i o (o x)) (rs : AccWorker recCode m)
+  Acc→Graph' : (m : Rec i o a) (rs : AccWorker recCode m)
     → Graph' ∞ m (runRecWorker recCode m rs)
 
   Acc→Graph x (acc rs) = Acc→Graph' (recCode x) rs
