@@ -41,6 +41,9 @@ module GraphOf (@0 recCode : RecProg' (Rec i o) i o) where
   Eval code s = ∀ {@0 y} → @0 Graph' s code y → Singleton y
   {-# COMPILE AGDA2HS Eval inline #-}
 
+  -- we could use (sized) Acc instead, but type-level run would complicate proofs
+  -- Eval code s = (@0 rs : AccS' code s) → Singleton (run code rs)
+
 
 module @0 _ {recCode : RecProg' (Rec i o) i o} where
   open GraphOf recCode
@@ -129,19 +132,19 @@ open Total public
 pureTotal : a → Total i o a
 pureTotal x = record
   { code = Ret x
-  ; unTotal = λ _ g → x ⟨ invertRet g ⟩
+  ; unTotal = λ _ grf → x ⟨ invertRet grf ⟩
   }
 {-# COMPILE AGDA2HS pureTotal #-}
 
 bindTotal : Total i o a → (a → Total i o b) → Total i o b
 bindTotal m k = record
   { code = m .code >>= λ x → k x .code
-  ; unTotal = λ {s = s} {recCode} self {y} g →
+  ; unTotal = λ {s = s} {recCode} self {y} grf →
       let open GraphOf recCode
-          @0 gs : Σ[ x ∈ _ ] Graph' s (m .code) x × Graph' s (k x .code) y
-          gs = invertBind (m .code) (λ x → k x .code) g
-          x ⟨ eq ⟩ = m .unTotal self (gs .snd .fst)
-      in k x .unTotal self (subst (λ z → Graph' s (k z .code) _) eq (gs .snd .snd))
+          @0 grfs : Σ[ x ∈ _ ] Graph' s (m .code) x × Graph' s (k x .code) y
+          grfs = invertBind (m .code) (λ x → k x .code) grf
+          x ⟨ eq ⟩ = m .unTotal self (grfs .snd .fst)
+      in k x .unTotal self (subst (λ z → Graph' s (k z .code) _) eq (grfs .snd .snd))
   }
 {-# COMPILE AGDA2HS bindTotal #-}
 
