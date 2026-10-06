@@ -26,6 +26,7 @@ library
                     , GenRec.Direct
                     , GenRec.Fueled
                     , GenRec.Free
+                    , GenRec.Total
                     , GenRec.Example
     build-depends:    base >=4.21 && <5
     hs-source-dirs:   lib

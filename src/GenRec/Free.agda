@@ -1,5 +1,3 @@
-{-# OPTIONS --type-in-type #-}
-
 module GenRec.Free where
 
 open import Haskell.Prelude
@@ -96,7 +94,7 @@ module _ {i : Type} {o : @0 i → Type} where
   -- Rec itself can serve as an description!
   @0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
   ⟦ Ret y'   ⟧ X y = y ≡ y'
-  ⟦ Call x k ⟧ X y = Σ (o x) λ z → X x z × ⟦ k z ⟧ X y
+  ⟦ Call x k ⟧ X y = Σ[ z ∈ o x ] X x z × ⟦ k z ⟧ X y
 
 
 module _ (prog : RecProg' (Rec i o) i o) where
