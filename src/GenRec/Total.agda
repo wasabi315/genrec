@@ -75,16 +75,16 @@ module @0 _ {recCode : RecProg' (Rec i o) i o} where
   Acc→Graph : ∀ x (rs : Acc recCode x)
     → Graph ∞ x (runRec recCode x rs)
 
-  Acc→Graph' : (m : Rec i o a) (rs : AccWorker recCode m)
-    → Graph' ∞ m (runRecWorker recCode m rs)
+  Acc→Graph' : (code : Rec i o a) (rs : AccWorker recCode code)
+    → ⟦ code ⟧ (Graph ∞) (runRecWorker recCode code rs)
 
-  Acc→Graph x (acc rs) = Acc→Graph' (recCode x) rs
+  Acc→Graph x (acc rs) = con (Acc→Graph' (recCode x) rs)
 
-  Acc→Graph' (Ret y) tt = con refl
-  Acc→Graph' (Call x k) (r₁ , r₂)
-    with ih₁ ← Acc→Graph x r₁
-    with con ih₂ ← Acc→Graph' (k (runRec recCode x r₁)) r₂
-    = con (_ , (ih₁ , ih₂))
+  Acc→Graph' (Ret y) tt = refl
+  Acc→Graph' (Call x k) (r₁ , r₂) =
+    let ih₁ = Acc→Graph x r₁
+        ih₂ = Acc→Graph' (k (runRec recCode x r₁)) r₂
+    in _ , (ih₁ , ih₂)
 
 --------------------------------------------------------------------------------
 
