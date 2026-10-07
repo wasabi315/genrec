@@ -93,18 +93,22 @@ record Total (i : Type) (o : @0 i → Type) (a : Type) : Type where
   field
     @0 code : Rec i o a
     unTotal :
-      -- for any code describing the graph of a recursive program
+      -- this gets knot-tied with the code of the recursive program being interpreted
       {@0 recCode : RecProg' (Rec i o) i o} (let open GraphOf recCode)
       -- given a function that realises the result of 'recCode x'
       → Thunk (λ t → ∀ x → Eval (recCode x) t) s
       -- realise the result of 'code'
       → Eval code s
 
+open Total public
+
+{-# COMPILE AGDA2HS Total newtype #-}
+
 module _ (prog : RecProg' (Total i o) i o) where
 
   private
     @0 recCode : RecProg' (Rec i o) i o
-    recCode x = prog x .Total.code
+    recCode x = prog x .code
 
   open GraphOf recCode
 
@@ -112,7 +116,7 @@ module _ (prog : RecProg' (Total i o) i o) where
   runTotal = λ x rs → go .force x (Acc→Graph x rs) .value
     where
       go : Thunk (λ t → ∀ x → Eval (recCode x) t) s
-      go .force x r = prog x .Total.unTotal {recCode = recCode} go r
+      go .force x r = prog x .unTotal {recCode = recCode} go r
   {-# COMPILE AGDA2HS runTotal #-}
   {-# FOREIGN AGDA2HS {-# INLINE runTotal #-} #-}
 
@@ -120,14 +124,10 @@ module _ (prog : RecProg' (Total i o) i o) where
   runTotalInline = λ x rs → go .force x (Acc→Graph x rs) .value
     where
       go : Thunk (λ t → ∀ x → Eval (recCode x) t) s
-      go .force x r = inline prog x .Total.unTotal {recCode = recCode} go r
+      go .force x r = inline prog x .unTotal {recCode = recCode} go r
   {-# COMPILE AGDA2HS runTotalInline #-}
   {-# FOREIGN AGDA2HS {-# INLINE runTotalInline #-} #-}
 
-
-open Total public
-
-{-# COMPILE AGDA2HS Total newtype #-}
 
 pureTotal : a → Total i o a
 pureTotal x = record
