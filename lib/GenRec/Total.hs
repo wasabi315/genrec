@@ -31,11 +31,11 @@ bindTotal :: Total i o a -> (a -> Total i o b) -> Total i o b
 bindTotal m k = Total (\ self -> unTotal (k (unTotal m self)) self)
 
 instance Functor (Total i o) where
-    fmap f m = bindTotal m (pureTotal . f)
+    fmap = \ m f -> bindTotal f (pureTotal . m)
 
 instance Applicative (Total i o) where
     pure = pureTotal
-    mf <*> m = bindTotal mf (<$> m)
+    (<*>) = \ m mf -> bindTotal m (<$> mf)
 
 instance Monad (Total i o) where
     (>>=) = bindTotal

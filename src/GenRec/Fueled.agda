@@ -12,6 +12,7 @@ open import Haskell.Prim.Thunk
 
 open import GenRec.Class
 open import GenRec.Inline
+open import GenRec.Reflection
 
 {-# FOREIGN AGDA2HS
 import GenRec.Class
@@ -80,24 +81,13 @@ bindFueled m k = record
 {-# COMPILE AGDA2HS bindFueled #-}
 
 instance
-  iDefaultFunctorFueled : DefaultFunctor (Fueled i o)
-  iDefaultFunctorFueled .DefaultFunctor.fmap f m = bindFueled m (pureFueled ∘ f)
-
-  iFunctorFueled : Functor (Fueled i o)
-  iFunctorFueled = record {DefaultFunctor iDefaultFunctorFueled}
-
-  iDefaultApplicativeFueled : DefaultApplicative (Fueled i o)
-  iDefaultApplicativeFueled .DefaultApplicative.pure = pureFueled
-  iDefaultApplicativeFueled .DefaultApplicative._<*>_ mf m = bindFueled mf (_<$> m)
-
+  iFunctorFueled     : Functor (Fueled i o)
   iApplicativeFueled : Applicative (Fueled i o)
-  iApplicativeFueled = record {DefaultApplicative iDefaultApplicativeFueled}
+  iMonadFueled       : Monad (Fueled i o)
 
-  iDefaultMonadFueled : DefaultMonad (Fueled i o)
-  iDefaultMonadFueled .DefaultMonad._>>=_ = bindFueled
-
-  iMonadFueled : Monad (Fueled i o)
-  iMonadFueled = record {DefaultMonad iDefaultMonadFueled}
+  iFunctorFueled     = record {DefaultFunctor (functorVia pureFueled bindFueled)}
+  iApplicativeFueled = record {DefaultApplicative (applicativeVia pureFueled bindFueled)}
+  iMonadFueled       = record {DefaultMonad (monadVia bindFueled)}
 
   iMonadRecFueled : MonadRec i o (Fueled i o)
   iMonadRecFueled .recurse x = record

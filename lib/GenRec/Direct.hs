@@ -32,11 +32,11 @@ bindDirect m k
   = Direct (\ self -> unDirect (k (unDirect m self)) self)
 
 instance Functor (Direct i o) where
-    fmap f m = bindDirect m (pureDirect . f)
+    fmap = \ m f -> bindDirect f (pureDirect . m)
 
 instance Applicative (Direct i o) where
     pure = pureDirect
-    mf <*> m = bindDirect mf (<$> m)
+    (<*>) = \ m mf -> bindDirect m (<$> mf)
 
 instance Monad (Direct i o) where
     (>>=) = bindDirect

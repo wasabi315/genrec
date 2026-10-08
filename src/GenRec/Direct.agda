@@ -4,6 +4,7 @@ open import Haskell.Prelude
 
 open import GenRec.Class
 open import GenRec.Inline
+open import GenRec.Reflection
 
 {-# FOREIGN AGDA2HS
 import GenRec.Class
@@ -58,24 +59,13 @@ bindDirect m k = record
 {-# COMPILE AGDA2HS bindDirect #-}
 
 instance
-  iDefaultFunctorDirect : DefaultFunctor (Direct i o)
-  iDefaultFunctorDirect .DefaultFunctor.fmap f m = bindDirect m (pureDirect ∘ f)
-
-  iFunctorDirect : Functor (Direct i o)
-  iFunctorDirect = record {DefaultFunctor iDefaultFunctorDirect}
-
-  iDefaultApplicativeDirect : DefaultApplicative (Direct i o)
-  iDefaultApplicativeDirect .DefaultApplicative.pure = pureDirect
-  iDefaultApplicativeDirect .DefaultApplicative._<*>_ mf m = bindDirect mf (_<$> m)
-
+  iFunctorDirect     : Functor (Direct i o)
   iApplicativeDirect : Applicative (Direct i o)
-  iApplicativeDirect = record {DefaultApplicative iDefaultApplicativeDirect}
+  iMonadDirect       : Monad (Direct i o)
 
-  iDefaultMonadDirect : DefaultMonad (Direct i o)
-  iDefaultMonadDirect .DefaultMonad._>>=_ = bindDirect
-
-  iMonadDirect : Monad (Direct i o)
-  iMonadDirect = record {DefaultMonad iDefaultMonadDirect}
+  iFunctorDirect     = record {DefaultFunctor (functorVia pureDirect bindDirect)}
+  iApplicativeDirect = record {DefaultApplicative (applicativeVia pureDirect bindDirect)}
+  iMonadDirect       = record {DefaultMonad (monadVia bindDirect)}
 
   iMonadRecDirect : MonadRec i o (Direct i o)
   iMonadRecDirect .recurse x = record { unDirect = λ self → self x }

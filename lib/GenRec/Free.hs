@@ -1,6 +1,6 @@
 module GenRec.Free where
 
-import GenRec.Class (MonadRec, RecProg')
+import GenRec.Class (MonadRec)
 
 import GenRec.Class
 
@@ -12,11 +12,11 @@ bindRec (Ret a) k = k a
 bindRec (Call x j) k = Call x (\ o -> bindRec (j o) k)
 
 instance Functor (Rec i o) where
-    fmap f m = bindRec m (Ret . f)
+    fmap = \ m f -> bindRec f (Ret . m)
 
 instance Applicative (Rec i o) where
     pure = Ret
-    mf <*> m = bindRec mf (<$> m)
+    (<*>) = \ m mf -> bindRec m (<$> mf)
 
 instance Monad (Rec i o) where
     (>>=) = bindRec
@@ -31,13 +31,4 @@ runRecWorker :: (i -> Rec i o o) -> Rec i o a -> a
 runRecWorker prog (Ret y) = y
 runRecWorker prog (Call x k)
   = runRecWorker prog (k (runRec prog x))
-
-runRecG :: (i -> Rec i o o) -> i -> o
-runRecG prog x = runRecGWorker prog (prog x)
-
-runRecGWorker :: RecProg' (Rec i o) i o -> Rec i o a -> a
-runRecGWorker prog (Ret x) = x
-runRecGWorker prog (Call x k)
-  = case runRecG prog x of
-        z -> runRecGWorker prog (k z)
 

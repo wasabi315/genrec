@@ -6,6 +6,7 @@ open import Haskell.Extra.Erase
 open import Haskell.Law.Equality using (cong; subst)
 
 open import GenRec.Class
+open import GenRec.Reflection
 
 {-# FOREIGN AGDA2HS
 import GenRec.Class
@@ -29,24 +30,13 @@ bindRec (Call x j) k = Call x λ o → bindRec (j o) k
 {-# COMPILE AGDA2HS bindRec #-}
 
 instance
-  iDefaultFunctorRec : DefaultFunctor (Rec i o)
-  iDefaultFunctorRec .DefaultFunctor.fmap f m = bindRec m (Ret ∘ f)
-
-  iFunctorRec : Functor (Rec i o)
-  iFunctorRec = record {DefaultFunctor iDefaultFunctorRec}
-
-  iDefaultApplicativeRec : DefaultApplicative (Rec i o)
-  iDefaultApplicativeRec .DefaultApplicative.pure = Ret
-  iDefaultApplicativeRec .DefaultApplicative._<*>_ mf m = bindRec mf (_<$> m)
-
+  iFunctorRec     : Functor (Rec i o)
   iApplicativeRec : Applicative (Rec i o)
-  iApplicativeRec = record {DefaultApplicative iDefaultApplicativeRec}
+  iMonadRec       : Monad (Rec i o)
 
-  iDefaultMonadRec : DefaultMonad (Rec i o)
-  iDefaultMonadRec .DefaultMonad._>>=_ = bindRec
-
-  iMonadRec : Monad (Rec i o)
-  iMonadRec = record {DefaultMonad iDefaultMonadRec}
+  iFunctorRec     = record {DefaultFunctor (functorVia Ret bindRec)}
+  iApplicativeRec = record {DefaultApplicative (applicativeVia Ret bindRec)}
+  iMonadRec       = record {DefaultMonad (monadVia bindRec)}
 
   iMonadRecRec : MonadRec i o (Rec i o)
   iMonadRecRec .recurse i = Call i Ret
@@ -83,29 +73,6 @@ runRecWorker prog (Call x k) (r₁ , r₂) = runRecWorker prog (k (runRec prog x
 
 {-# COMPILE AGDA2HS runRec       #-}
 {-# COMPILE AGDA2HS runRecWorker #-}
-
--- variant that does not use induction-recursion
--- Rec itself can serve as a description that generates inductive graphs!
-
-@0 ⟦_⟧ : Rec i o a → (∀ x → o x → Type) → a → Type
-⟦ Ret y'   ⟧ X y = y ≡ y'
-⟦ Call x k ⟧ X y = Σ[ z ∈ _ ] X x z × ⟦ k z ⟧ X y
-
-data Graph (prog : RecProg' (Rec i o) i o) (x : i) (y : o x) : Type where
-  con : ⟦ prog x ⟧ (Graph prog) y → Graph prog x y
-
-runRecG       : ∀ prog (x : i) {@0 y : o x} → @0 Graph prog x y → Singleton y
-runRecGWorker : ∀ prog {@0 y} (m : Rec i o a) → @0 ⟦ m ⟧ (Graph prog) y → Singleton y
-
-runRecG prog x (con grf) = runRecGWorker prog (prog x) grf
-
-runRecGWorker prog (Ret x) refl = sing x
-runRecGWorker prog (Call x k) (z , (grf₁ , grf₂)) =
-  case runRecG prog x grf₁ of λ where
-    (sing z) → runRecGWorker prog (k z) grf₂
-
-{-# COMPILE AGDA2HS runRecG #-}
-{-# COMPILE AGDA2HS runRecGWorker #-}
 
 --------------------------------------------------------------------------------
 -- Acc is a proposition
