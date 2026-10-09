@@ -48,7 +48,7 @@ instance
 
 --------------------------------------------------------------------------------
 
-module Graph (@0 recDesc : ∀ x → Desc i o (o x)) where
+private module Graph (@0 recDesc : ∀ x → Desc i o (o x)) where
 
   @0 Graph : (x : i) (y : o x) (s : Size) → Type
   data @0 GraphOf (desc : Desc i o a) (y : a) (s : Size) : Type
@@ -68,7 +68,7 @@ module Graph (@0 recDesc : ∀ x → Desc i o (o x)) where
   {-# COMPILE AGDA2HS Eval inline #-}
 
 
-module @0 _ {recDesc : ∀ x → Desc i o (o x)} where
+private module @0 _ {recDesc : ∀ x → Desc i o (o x)} where
   open Graph recDesc
 
   -- invert Graph
@@ -115,7 +115,7 @@ module Acc (recDesc : ∀ x → Desc i o (o x)) where
   resultStep (Call x d) (rs₁ , rs₂) = resultStep (d (result x rs₁)) rs₂
 
 
-module @0 _ {recDesc : ∀ x → Desc i o (o x)} where
+private module @0 _ {recDesc : ∀ x → Desc i o (o x)} where
   open Graph recDesc
   open Acc   recDesc
 
@@ -138,7 +138,8 @@ record Total (i : Type) (o : @0 i → Type) (a : Type) : Type where
   no-eta-equality
   field
     @0 desc : Desc i o a
-    unTotal :
+    -- implicit for better printing
+    {unTotal} :
       {@0 selfDesc : ∀ x → Desc i o (o x)} (let open Graph selfDesc)
       -- given a function that realises the result of 'selfDesc x'
       → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
@@ -174,23 +175,43 @@ module _ (prog : RecProg' (Total i o) i o) where
   {-# COMPILE AGDA2HS runTotalInline #-}
   {-# FOREIGN AGDA2HS {-# INLINE runTotalInline #-} #-}
 
+module _ {@0 selfDesc : ∀ x → Desc i o (o x)} where opaque
+  open Graph selfDesc
+
+  pureTotal' : (x : a)
+    → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
+    → Eval (Ret x) s
+  pureTotal' x = λ _ g → x ⟨ invertRet g ⟩
+  {-# COMPILE AGDA2HS pureTotal' inline #-}
+
+  bindTotal' : (m : Total i o a) (k : a → Total i o b)
+    → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
+    → Eval (m .desc >>= λ x → k x .desc) s
+  bindTotal' {s = s} m k = λ self {y} g →
+    let @0 gs : Σ[ x ∈ _ ] GraphOf (m .desc) x s × GraphOf (k x .desc) y s
+        gs = invertBind (m .desc) (λ x → k x .desc) g
+        x ⟨ eq ⟩ = m .unTotal self (gs .snd .fst)
+    in k x .unTotal self (subst (λ z → GraphOf (k z .desc) _ s) eq (gs .snd .snd))
+  {-# COMPILE AGDA2HS bindTotal' inline #-}
+
+  recurseTotal' : (x : i)
+    → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
+    → Eval (Call x Ret) s
+  recurseTotal' x = λ where self (con (_ , (g , refl))) → self .force x g
+  {-# COMPILE AGDA2HS recurseTotal' inline #-}
+
 
 pureTotal : a → Total i o a
 pureTotal x = record
   { desc = Ret x
-  ; unTotal = λ _ g → x ⟨ invertRet g ⟩
+  ; unTotal = pureTotal' x
   }
 {-# COMPILE AGDA2HS pureTotal #-}
 
 bindTotal : Total i o a → (a → Total i o b) → Total i o b
 bindTotal m k = record
   { desc = m .desc >>= λ x → k x .desc
-  ; unTotal = λ {s} {selfDesc} self {y} g →
-      let open Graph selfDesc
-          @0 gs : Σ[ x ∈ _ ] GraphOf (m .desc) x s × GraphOf (k x .desc) y s
-          gs = invertBind (m .desc) (λ x → k x .desc) g
-          x ⟨ eq ⟩ = m .unTotal self (gs .snd .fst)
-      in k x .unTotal self (subst (λ z → GraphOf (k z .desc) _ s) eq (gs .snd .snd))
+  ; unTotal = bindTotal' m k
   }
 {-# COMPILE AGDA2HS bindTotal #-}
 
@@ -206,7 +227,7 @@ instance
   iMonadRecTotal : MonadRec i o (Total i o)
   iMonadRecTotal .recurse x = record
     { desc = Call x Ret
-    ; unTotal = λ where self (Graph.con (_ , (g , refl))) → self .force x g
+    ; unTotal = recurseTotal' x
     }
 
   {-# COMPILE AGDA2HS iFunctorTotal     #-}

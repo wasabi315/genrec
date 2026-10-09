@@ -24,7 +24,7 @@ module Quicksort where
   {-# COMPILE AGDA2HS quicksort' #-}
   {-# FOREIGN AGDA2HS {-# INLINE quicksort' #-} #-}
 
-  quicksortFueled : ⦃ _ : Ord a ⦄ → List a → Maybe (List a)
+  quicksortFueled : ⦃ Ord a ⦄ → List a → Maybe (List a)
   quicksortFueled xs = runFueledInline quicksort' (natToFuel 100) xs
   {-# COMPILE AGDA2HS quicksortFueled #-}
 
@@ -38,13 +38,7 @@ module Quicksort where
     import Relation.Binary.Construct.On as On
 
     private
-      -- This slows down typechecking!
-      -- open Acc (λ x → quicksort' x .desc)
-
-      recDesc : List a → Desc (List a) (λ _ → List a) (List a)
-      recDesc x = quicksort' x .desc
-
-      open Acc recDesc
+      open Acc (λ x → quicksort' {a = a} x .desc)
 
       _≺_ _≼_ : List a → List a → Type
       _≺_ = _<_ on lengthNat
@@ -70,7 +64,7 @@ module Quicksort where
           , rs (s≤s (filter≼ (not ∘ (_<= x)) xs))
           , tt )
 
-  quicksort : ⦃ _ : Ord a ⦄ → List a → List a
+  quicksort : ⦃ Ord a ⦄ → List a → List a
   quicksort xs = runTotalInline quicksort' xs (∀QuicksortAcc xs)
   {-# COMPILE AGDA2HS quicksort #-}
 
@@ -102,7 +96,7 @@ module Norm where
   normaliseFueled e = runFueledInline norm (natToFuel 100) e
   {-# COMPILE AGDA2HS normaliseFueled #-}
 
-  module @0 _ where
+  private module @0 _ where
     open import Data.Nat hiding (_+_; _*_)
     open import Data.Nat.Induction hiding (Acc; acc)
     open import Data.Nat.Properties
@@ -116,10 +110,7 @@ module Norm where
     open ≤-Reasoning
 
     private
-      recDesc : Expr → Desc Expr (λ _ → Expr) Expr
-      recDesc e = norm e .desc
-
-      open Acc recDesc
+      open Acc (λ e → norm e .desc)
 
       ∣_∣ : Expr → ℕ
       ∣ Atom _ ∣ = 1
