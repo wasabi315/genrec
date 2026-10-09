@@ -25,11 +25,11 @@ record Direct (i : Type) (o : @0 i → Type) (a : Type) : Type where
 open Direct public
 {-# COMPILE AGDA2HS Direct newtype #-}
 
-module _ {i : Type} {o : @0 i → Type} where
+module _ (f : RecProg' (Direct i o) i o) where
 
   {-# NON_TERMINATING #-}
-  runDirect : RecProg' (Direct i o) i o → ∀ x → o x
-  runDirect f = go
+  runDirect : ∀ x → o x
+  runDirect = go
     where
       go : ∀ x → o x
       go x = f x .unDirect go
@@ -37,13 +37,17 @@ module _ {i : Type} {o : @0 i → Type} where
   {-# FOREIGN AGDA2HS {-# INLINE runDirect #-} #-}
 
   {-# NON_TERMINATING #-}
-  runDirectInline : RecProg' (Direct i o) i o → ∀ x → o x
-  runDirectInline f = go
+  runDirectInline : ∀ x → o x
+  runDirectInline = go
     where
       go : ∀ x → o x
       go x = inline f x .unDirect go
   {-# COMPILE AGDA2HS runDirectInline #-}
   {-# FOREIGN AGDA2HS {-# INLINE runDirectInline #-} #-}
+
+  runDirectOpen : (∀ x → o x) → ∀ x → o x
+  runDirectOpen self x = f x .unDirect self
+  {-# COMPILE AGDA2HS runDirectOpen #-}
 
 
 pureDirect : a → Direct i o a

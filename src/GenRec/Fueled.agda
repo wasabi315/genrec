@@ -49,18 +49,18 @@ open Fueled public
 
 {-# COMPILE AGDA2HS Fueled newtype #-}
 
-module _ {i : Type} {o : @0 i → Type} where
+module _ (f : RecProg' (Fueled i o) i o) where
 
-  runFueled : RecProg' (Fueled i o) i o → Fuel s → ∀ x → Maybe (o x)
-  runFueled f = go .force
+  runFueled : Fuel s → ∀ x → Maybe (o x)
+  runFueled = go .force
     where
       go : Thunk (λ t → Fuel t → ∀ x → Maybe (o x)) s
       go .force n x = f x .unFueled go n
   {-# COMPILE AGDA2HS runFueled #-}
   {-# FOREIGN AGDA2HS {-# INLINE runFueled #-} #-}
 
-  runFueledInline : RecProg' (Fueled i o) i o → Fuel s → ∀ x → Maybe (o x)
-  runFueledInline f = go .force
+  runFueledInline : Fuel s → ∀ x → Maybe (o x)
+  runFueledInline = go .force
     where
       go : Thunk (λ t → Fuel t → ∀ x → Maybe (o x)) s
       go .force n x = inline f x .unFueled go n

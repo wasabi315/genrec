@@ -24,6 +24,10 @@ runDirectInline f = go
 
 {-# INLINE runDirectInline #-}
 
+runDirectOpen ::
+              forall i o . RecProg' (Direct i o) i o -> (i -> o) -> i -> o
+runDirectOpen f self x = unDirect (f x) self
+
 pureDirect :: a -> Direct i o a
 pureDirect x = Direct (\ _ -> x)
 
