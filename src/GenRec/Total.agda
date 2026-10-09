@@ -30,6 +30,9 @@ data Desc (i : Type) (o : @0 i → Type) (a : Type) : Type where
   Ret  : a → Desc i o a
   Call : ∀ x → (o x → Desc i o a) → Desc i o a
 
+pureDesc : a → Desc i o a
+pureDesc = Ret
+
 bindDesc : Desc i o a → (a → Desc i o b) → Desc i o b
 bindDesc (Ret a)    k = k a
 bindDesc (Call x j) k = Call x λ o → bindDesc (j o) k
@@ -39,8 +42,8 @@ instance
   iApplicativeDesc : Applicative (Desc i o)
   iMonadDesc       : Monad (Desc i o)
 
-  iFunctorDesc     = record {DefaultFunctor (functorVia Ret bindDesc)}
-  iApplicativeDesc = record {DefaultApplicative (applicativeVia Ret bindDesc)}
+  iFunctorDesc     = record {DefaultFunctor (functorVia pureDesc bindDesc)}
+  iApplicativeDesc = record {DefaultApplicative (applicativeVia pureDesc bindDesc)}
   iMonadDesc       = record {DefaultMonad (monadVia bindDesc)}
 
 --------------------------------------------------------------------------------
