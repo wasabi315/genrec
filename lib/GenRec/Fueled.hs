@@ -49,11 +49,11 @@ bindFueled m k
             unFueled (k x) self n)
 
 instance Functor (Fueled i o) where
-    fmap = \ m f -> bindFueled f (pureFueled . m)
+    fmap = \ f m -> bindFueled m (pureFueled . f)
 
 instance Applicative (Fueled i o) where
     pure = pureFueled
-    (<*>) = \ m mf -> bindFueled m (<$> mf)
+    (<*>) = \ mf m -> bindFueled mf (<$> m)
 
 instance Monad (Fueled i o) where
     (>>=) = bindFueled

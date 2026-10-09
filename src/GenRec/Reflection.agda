@@ -35,7 +35,7 @@ macro
   functorVia : Name → Name → Term → TC ⊤
   functorVia pure bind hole = do
     pure ← pure · []
-    fmap ← prependVLams ("f" ∷ "m" ∷ []) <$>
+    fmap ← prependVLams ("m" ∷ "f" ∷ []) <$>
       bind ·
         ( vArg (# 0)
         ∷ vArg (def (quote Haskell._∘_) (vArg pure ∷ vArg (# 1) ∷ []))
@@ -49,7 +49,7 @@ macro
   applicativeVia : Name → Name → Term → TC ⊤
   applicativeVia pure bind hole = do
     pure ← pure · []
-    ap   ← prependVLams ("mf" ∷ "m" ∷ []) <$>
+    ap   ← prependVLams ("m" ∷ "mf" ∷ []) <$>
       bind ·
         ( vArg (# 1)
         ∷ vArg (vLam "f" (def (quote Haskell._<$>_) (vArg (# 0) ∷ vArg (# 1) ∷ [])))

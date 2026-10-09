@@ -39,8 +39,8 @@ instance
   iApplicativeDesc : Applicative (Desc i o)
   iMonadDesc       : Monad (Desc i o)
 
-  iFunctorDesc     = record {DefaultFunctor (functorVia Desc.Ret bindDesc)}
-  iApplicativeDesc = record {DefaultApplicative (applicativeVia Desc.Ret bindDesc)}
+  iFunctorDesc     = record {DefaultFunctor (functorVia Ret bindDesc)}
+  iApplicativeDesc = record {DefaultApplicative (applicativeVia Ret bindDesc)}
   iMonadDesc       = record {DefaultMonad (monadVia bindDesc)}
 
 --------------------------------------------------------------------------------
