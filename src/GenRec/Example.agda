@@ -199,20 +199,15 @@ module Norm where
       norm≼ : ∀ e (rs : Acc e) → result e rs ≼ e
       norm≼ (Atom _) (acc _) = ≤-refl
       norm≼ (If (Atom _) th el) (acc (r₁ , r₂ , tt)) =
-        s≤s (+-monoˡ-≤ _ (+-mono-≤ ih₁ ih₂))
-        where
-          ih₁ : result th r₁ ≼ th
-          ih₂ : result el r₂ ≼ el
-          ih₁ = norm≼ th r₁
-          ih₂ = norm≼ el r₂
+        s≤s (+-monoˡ-≤ _ (+-mono-≤ (norm≼ th r₁) (norm≼ el r₂)))
       norm≼ (If (If co th' el') th el) (acc (r₁ , r₂ , r₃ , tt))
         using e₁ ← result (If th' th el) r₁
         using e₂ ← result (If el' th el) r₂ =
         begin
           ∣ result (If co e₁ e₂) r₃ ∣
-        ≤⟨ ih₃ ⟩
+        ≤⟨ norm≼ (If co e₁ e₂) r₃ ⟩
           ∣ co ∣ * suc (∣ e₁ ∣ + ∣ e₂ ∣)
-        ≤⟨ *-monoʳ-≤ ∣ co ∣ (s≤s (+-mono-≤ ih₁ ih₂)) ⟩
+        ≤⟨ *-monoʳ-≤ ∣ co ∣ (s≤s (+-mono-≤ (norm≼ (If th' th el) r₁) (norm≼ (If el' th el) r₂))) ⟩
           ∣ co ∣ * suc ⌞ ∣ th' ∣ * suc (∣ th ∣ + ∣ el ∣) + (∣ el' ∣ * suc (∣ th ∣ + ∣ el ∣)) ⌟
         ≡⟨ cong! (*-distribʳ-+ _ ∣ th' ∣ ∣ el' ∣) ⟨
           ∣ co ∣ * suc ((∣ th' ∣ + ∣ el' ∣) * suc (∣ th ∣ + ∣ el ∣))
@@ -221,13 +216,6 @@ module Norm where
         ≡⟨ *-assoc ∣ co ∣ _ _ ⟨
           ∣ co ∣ * suc (∣ th' ∣ + ∣ el' ∣) * suc (∣ th ∣ + ∣ el ∣)
         ∎
-        where
-          ih₁ : e₁ ≼ If th' th el
-          ih₂ : e₂ ≼ If el' th el
-          ih₃ : result (If co e₁ e₂) r₃ ≼ If co e₁ e₂
-          ih₁ = norm≼ (If th' th el) r₁
-          ih₂ = norm≼ (If el' th el) r₂
-          ih₃ = norm≼ (If co e₁ e₂) r₃
 
     ∀NormAcc : ∀ e → Acc e
     ∀NormAcc = ≺-rec _ Acc λ where
