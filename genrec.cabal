@@ -21,12 +21,11 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  GenRec
-                    , GenRec.Class
+    exposed-modules:  GenRec.Class
                     , GenRec.Direct
                     , GenRec.Fueled
                     , GenRec.Total
-                    , GenRec.Example
+    other-modules:    GenRec.Example
     build-depends:    base >=4.21 && <5
     hs-source-dirs:   lib
     default-language: GHC2024
