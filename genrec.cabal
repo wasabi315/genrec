@@ -25,7 +25,6 @@ library
                     , GenRec.Class
                     , GenRec.Direct
                     , GenRec.Fueled
-                    , GenRec.Free
                     , GenRec.Total
                     , GenRec.Example
     build-depends:    base >=4.21 && <5

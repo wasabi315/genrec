@@ -2,10 +2,8 @@
 
 module GenRec.Example where
 
-open import Agda.Builtin.Size
 open import Haskell.Prelude hiding (_<_; All; _,_,_) renaming (_,_ to infixr 4 _,_)
-open import Haskell.Law.Equality using (cong; subst)
-open import Haskell.Extra.Refinement
+open import Haskell.Law.Equality using (cong)
 open import Haskell.Extra.Sigma renaming (_,_ to infixr 4 _,_)
 
 open import GenRec
@@ -30,7 +28,7 @@ module Quicksort where
   quicksortFueled xs = runFueledInline quicksort' (natToFuel 100) xs
   {-# COMPILE AGDA2HS quicksortFueled #-}
 
-  module _ {a : Type} where
+  module @0 _ ⦃ _ : Ord a ⦄ where
     open import Data.Nat hiding (_+_; _*_)
     open import Data.Nat.Induction hiding (Acc; acc)
     open import Data.Nat.Properties
@@ -40,6 +38,14 @@ module Quicksort where
     import Relation.Binary.Construct.On as On
 
     private
+      -- This slows down typechecking!
+      -- open Acc (λ x → quicksort' x .desc)
+
+      recDesc : List a → Desc (List a) (λ _ → List a) (List a)
+      recDesc x = quicksort' x .desc
+
+      open Acc recDesc
+
       _≺_ _≼_ : List a → List a → Type
       _≺_ = _<_ on lengthNat
       _≼_ = _≤_ on lengthNat
@@ -55,8 +61,8 @@ module Quicksort where
       ... | True  = s≤s (filter≼ p xs)
       ... | False = ≤-trans (filter≼ p xs) (m≤n+m _ 1)
 
-    @0 ∀QuicksortAcc : ⦃ _ : Ord a ⦄ (xs : List a) → Acc (λ x → quicksort' x .code) xs
-    ∀QuicksortAcc = ≺-rec _ (Acc λ x → quicksort' x .code) λ where
+    ∀QuicksortAcc : ∀ xs → Acc xs
+    ∀QuicksortAcc = ≺-rec _ Acc λ where
       [] rs → acc tt
       (x ∷ xs) rs →
         acc
@@ -96,7 +102,7 @@ module Norm where
   normaliseFueled e = runFueledInline norm (natToFuel 100) e
   {-# COMPILE AGDA2HS normaliseFueled #-}
 
-  module _ where
+  module @0 _ where
     open import Data.Nat hiding (_+_; _*_)
     open import Data.Nat.Induction hiding (Acc; acc)
     open import Data.Nat.Properties
@@ -110,6 +116,10 @@ module Norm where
     open ≤-Reasoning
 
     private
+      recDesc : Expr → Desc Expr (λ _ → Expr) Expr
+      recDesc e = norm e .desc
+
+      open Acc recDesc
 
       ∣_∣ : Expr → ℕ
       ∣ Atom _ ∣ = 1
@@ -186,20 +196,20 @@ module Norm where
           ∣ co ∣ * suc (∣ th' ∣ + ∣ el' ∣) * suc (∣ th ∣ + ∣ el ∣)
         ∎
 
-      @0 norm≼ : ∀ e (rs : Acc (λ x → norm x .code) e) → runRec (λ x → norm x .code) e rs ≼ e
+      norm≼ : ∀ e (rs : Acc e) → result e rs ≼ e
       norm≼ (Atom _) (acc _) = ≤-refl
       norm≼ (If (Atom _) th el) (acc (r₁ , r₂ , tt)) =
         s≤s (+-monoˡ-≤ _ (+-mono-≤ ih₁ ih₂))
         where
-          ih₁ : runRec (λ x → norm x .code) th r₁ ≼ th
-          ih₂ : runRec (λ x → norm x .code) el r₂ ≼ el
+          ih₁ : result th r₁ ≼ th
+          ih₂ : result el r₂ ≼ el
           ih₁ = norm≼ th r₁
           ih₂ = norm≼ el r₂
       norm≼ (If (If co th' el') th el) (acc (r₁ , r₂ , r₃ , tt))
-        using e₁ ← runRec (λ x → norm x .code) (If th' th el) r₁
-        using e₂ ← runRec (λ x → norm x .code) (If el' th el) r₂ =
+        using e₁ ← result (If th' th el) r₁
+        using e₂ ← result (If el' th el) r₂ =
         begin
-          ∣ runRec (λ x → norm x .code) (If co e₁ e₂) r₃ ∣
+          ∣ result (If co e₁ e₂) r₃ ∣
         ≤⟨ ih₃ ⟩
           ∣ co ∣ * suc (∣ e₁ ∣ + ∣ e₂ ∣)
         ≤⟨ *-monoʳ-≤ ∣ co ∣ (s≤s (+-mono-≤ ih₁ ih₂)) ⟩
@@ -214,13 +224,13 @@ module Norm where
         where
           ih₁ : e₁ ≼ If th' th el
           ih₂ : e₂ ≼ If el' th el
-          ih₃ : runRec (λ x → norm x .code) (If co e₁ e₂) r₃ ≼ If co e₁ e₂
+          ih₃ : result (If co e₁ e₂) r₃ ≼ If co e₁ e₂
           ih₁ = norm≼ (If th' th el) r₁
           ih₂ = norm≼ (If el' th el) r₂
           ih₃ = norm≼ (If co e₁ e₂) r₃
 
-    @0 ∀NormAcc : ∀ e → Acc (λ x → norm x .code) e
-    ∀NormAcc = ≺-rec _ (Acc λ x → norm x .code) λ where
+    ∀NormAcc : ∀ e → Acc e
+    ∀NormAcc = ≺-rec _ Acc λ where
       (Atom _) _ → acc tt
       (If (Atom x) th el) rs →
         let r₁ = rs (lemma1 x th el)
@@ -228,9 +238,9 @@ module Norm where
         in acc (r₁ , r₂ , tt)
       (If (If co th' el') th el) rs →
         let r₁ = rs (lemma3 co th' el' th el)
-            e₁ = runRec (λ x → norm x .code) (If th' th el) r₁
+            e₁ = result (If th' th el) r₁
             r₂ = rs (lemma4 co th' el' th el)
-            e₂ = runRec (λ x → norm x .code) (If el' th el) r₂
+            e₂ = result (If el' th el) r₂
             r₃ = rs (lemma5 co th' el' th el e₁ e₂ (norm≼ _ r₁) (norm≼ _ r₂))
         in acc (r₁ , r₂ , r₃ , tt)
 
