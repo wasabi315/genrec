@@ -1,4 +1,4 @@
-{-# OPTIONS --sized-types #-}
+{-# OPTIONS --sized-types --rewriting #-}
 
 module GenRec.Example where
 
@@ -7,6 +7,54 @@ open import Haskell.Law.Equality using (cong)
 open import Haskell.Extra.Sigma renaming (_,_ to infixr 4 _,_)
 
 open import GenRec
+
+--------------------------------------------------------------------------------
+-- Example: Naive Fibonacci
+
+module Fib where
+  open import Haskell.Law.Eq
+  open import Haskell.Law.Equality
+  open import Haskell.Extra.Dec
+  open import Haskell.Extra.Nat
+  open import Haskell.Extra.Refinement
+  open import Agda.Builtin.Equality.Rewrite
+  open import Data.Nat.Base using (2+)
+
+  opaque
+    caseNat : Nat → a → (Nat → a) → a
+    caseNat n z s = ifDec (n ≟ 0) z λ ⦃ n≠0 ⦄ → s (predNat n n≠0 .value)
+    {-# COMPILE AGDA2HS caseNat inline #-}
+
+    caseNatZero : (z : a) (s : Nat → a) → caseNat 0 z s ≡ z
+    caseNatZero z s = refl
+    {-# REWRITE caseNatZero #-}
+
+    caseNatSuc : ∀ n (z : a) (s : Nat → a) → caseNat (suc n) z s ≡ s n
+    caseNatSuc n z s with predNat (suc n) (isEquality (suc n) 0)
+    ... | m ⟨ refl ⟩ = refl
+    {-# REWRITE caseNatSuc  #-}
+
+
+  fib' : RecProg Nat (λ _ → Nat)
+  fib' n =
+    caseNat n (pure 0) λ n →
+    caseNat n (pure 1) λ n → do
+      r ← recurse (suc n)
+      s ← recurse n
+      pure (r + s)
+  {-# COMPILE AGDA2HS fib' #-}
+  {-# FOREIGN AGDA2HS {-# INLINE fib' #-} #-}
+
+  open module @0 A = Acc (λ n → fib' n .desc)
+
+  @0 ∀FibAcc : ∀ n → Acc n
+  ∀FibAcc 0      = acc tt
+  ∀FibAcc 1      = acc tt
+  ∀FibAcc (2+ n) = acc (∀FibAcc (suc n) , ∀FibAcc n , tt)
+
+  fib : Nat → Nat
+  fib n = runTotalInline fib' n (∀FibAcc n)
+  {-# COMPILE AGDA2HS fib #-}
 
 --------------------------------------------------------------------------------
 -- Example: Quick sort
@@ -37,8 +85,9 @@ module Quicksort where
     open import Induction.WellFounded hiding (Acc; acc)
     import Relation.Binary.Construct.On as On
 
+    open Acc (λ x → quicksort' {a = a} x .desc)
+
     private
-      open Acc (λ x → quicksort' {a = a} x .desc)
 
       _≺_ _≼_ : List a → List a → Type
       _≺_ = _<_ on lengthNat
@@ -108,9 +157,9 @@ module Norm where
     import Relation.Binary.Construct.On as On
 
     open ≤-Reasoning
+    open Acc (λ e → norm e .desc)
 
     private
-      open Acc (λ e → norm e .desc)
 
       ∣_∣ : Expr → ℕ
       ∣ Atom _ ∣ = 1

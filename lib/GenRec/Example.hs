@@ -4,6 +4,20 @@ import qualified Data.List (partition)
 import GenRec.Class (MonadRec(recurse), RecProg')
 import GenRec.Fueled (natToFuel, runFueledInline)
 import GenRec.Total (runTotalInline)
+import Numeric.Natural (Natural)
+
+fib' :: MonadRec Natural Natural m => RecProg' m Natural Natural
+fib' n
+  = if n == 0 then pure 0 else
+      if pred n == 0 then pure 1 else
+        do r <- recurse (succ (pred (pred n)))
+           s <- recurse (pred (pred n))
+           pure (r + s)
+
+{-# INLINE fib' #-}
+
+fib :: Natural -> Natural
+fib n = runTotalInline fib' n
 
 quicksort' :: (Ord a, MonadRec [a] [a] m) => RecProg' m [a] [a]
 quicksort' [] = pure []

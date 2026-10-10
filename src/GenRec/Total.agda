@@ -216,9 +216,9 @@ bindTotal m k = record
 {-# COMPILE AGDA2HS bindTotal #-}
 
 instance
-  iFunctorTotal : Functor (Total i o)
+  iFunctorTotal     : Functor (Total i o)
   iApplicativeTotal : Applicative (Total i o)
-  iMonadTotal : Monad (Total i o)
+  iMonadTotal       : Monad (Total i o)
 
   iFunctorTotal     = record {DefaultFunctor (functorVia pureTotal bindTotal)}
   iApplicativeTotal = record {DefaultApplicative (applicativeVia pureTotal bindTotal)}
