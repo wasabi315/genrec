@@ -159,21 +159,24 @@ module _ (prog : RecProg' (Total i o) i o) where
     open module @0 G = Graph selfDesc
     open module @0 A = Acc selfDesc
 
-  runTotal : ∀ x → @0 Acc x → o x
-  runTotal = λ x rs → go .force x (Acc→Graph x rs) .value
-    where
-      go : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s
-      go .force x r = prog x .unTotal {selfDesc = selfDesc} go r
-  {-# COMPILE AGDA2HS runTotal #-}
-  {-# FOREIGN AGDA2HS {-# INLINE runTotal #-} #-}
+  opaque
 
-  runTotalInline : ∀ x → @0 Acc x → o x
-  runTotalInline = λ x rs → go .force x (Acc→Graph x rs) .value
-    where
-      go : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s
-      go .force x r = inline prog x .unTotal {selfDesc = selfDesc} go r
-  {-# COMPILE AGDA2HS runTotalInline #-}
-  {-# FOREIGN AGDA2HS {-# INLINE runTotalInline #-} #-}
+    runTotal : ∀ x (@0 rs : Acc x) → Singleton (result x rs)
+    runTotal = λ x rs → go .force x (Acc→Graph x rs)
+      where
+        go : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s
+        go .force x r = prog x .unTotal {selfDesc = selfDesc} go r
+    {-# COMPILE AGDA2HS runTotal #-}
+    {-# FOREIGN AGDA2HS {-# INLINE runTotal #-} #-}
+
+    runTotalInline : ∀ x (@0 rs : Acc x) → Singleton (result x rs)
+    runTotalInline = λ x rs → go .force x (Acc→Graph x rs)
+      where
+        go : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s
+        go .force x r = inline prog x .unTotal {selfDesc = selfDesc} go r
+    {-# COMPILE AGDA2HS runTotalInline #-}
+    {-# FOREIGN AGDA2HS {-# INLINE runTotalInline #-} #-}
+
 
 module _ {@0 selfDesc : ∀ x → Desc i o (o x)} where opaque
   open Graph selfDesc

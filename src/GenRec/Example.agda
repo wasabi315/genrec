@@ -4,6 +4,7 @@ module GenRec.Example where
 
 open import Haskell.Prelude hiding (_<_; All; _,_,_) renaming (_,_ to infixr 4 _,_)
 open import Haskell.Law.Equality using (cong)
+open import Haskell.Extra.Refinement
 open import Haskell.Extra.Sigma renaming (_,_ to infixr 4 _,_)
 
 open import GenRec
@@ -16,7 +17,6 @@ module Fib where
   open import Haskell.Law.Equality
   open import Haskell.Extra.Dec
   open import Haskell.Extra.Nat
-  open import Haskell.Extra.Refinement
   open import Agda.Builtin.Equality.Rewrite
   open import Data.Nat.Base using (2+)
 
@@ -53,7 +53,7 @@ module Fib where
   ∀FibAcc (2+ n) = acc (∀FibAcc (suc n) , ∀FibAcc n , tt)
 
   fib : Nat → Nat
-  fib n = runTotalInline fib' n (∀FibAcc n)
+  fib n = runTotalInline fib' n (∀FibAcc n) .value
   {-# COMPILE AGDA2HS fib #-}
 
 --------------------------------------------------------------------------------
@@ -114,7 +114,7 @@ module Quicksort where
           , tt )
 
   quicksort : ⦃ Ord a ⦄ → List a → List a
-  quicksort xs = runTotalInline quicksort' xs (∀QuicksortAcc xs)
+  quicksort xs = runTotalInline quicksort' xs (∀QuicksortAcc xs) .value
   {-# COMPILE AGDA2HS quicksort #-}
 
 --------------------------------------------------------------------------------
@@ -273,5 +273,5 @@ module Norm where
         in acc (r₁ , r₂ , r₃ , tt)
 
   normalise : Expr → Expr
-  normalise e = runTotalInline norm e (∀NormAcc e)
+  normalise e = runTotalInline norm e (∀NormAcc e) .value
   {-# COMPILE AGDA2HS normalise #-}
