@@ -7,7 +7,7 @@ open import Haskell.Prelude hiding (s; t)
 open import Haskell.Extra.Sigma
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
-open import Haskell.Law.Equality using (subst)
+open import Haskell.Law.Equality using (subst; cong)
 open import Haskell.Prim.Thunk
 
 open import GenRec.Class
@@ -237,3 +237,22 @@ instance
   {-# COMPILE AGDA2HS iApplicativeTotal #-}
   {-# COMPILE AGDA2HS iMonadTotal       #-}
   {-# COMPILE AGDA2HS iMonadRecTotal    #-}
+
+--------------------------------------------------------------------------------
+
+module _ {recDesc : ∀ x → Desc i o (o x)} where
+  open Acc recDesc
+
+  isPropAcc     : ∀ {x} (rs rs′ : Acc x) → rs ≡ rs′
+  isPropAccStep : (m : Desc i o a) (rs rs′ : AccStep m) → rs ≡ rs′
+
+  isPropAcc {x} (acc rs) (acc rs′) = cong acc (isPropAccStep (recDesc x) rs rs′)
+
+  isPropAccStep (Ret x) tt tt = refl
+  isPropAccStep (Call x k) (rs₁ , rs₂) (rs₁′ , rs₂′)
+    rewrite isPropAcc rs₁ rs₁′
+    rewrite isPropAccStep (k _) rs₂ rs₂′
+    = refl
+
+  result-irr-Acc : ∀ {x} (rs rs′ : Acc x) → result x rs ≡ result x rs′
+  result-irr-Acc rs rs′ rewrite isPropAcc rs rs′ = refl
