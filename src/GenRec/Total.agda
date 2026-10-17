@@ -46,6 +46,9 @@ instance
   iApplicativeDesc = record {DefaultApplicative (applicativeVia pureDesc bindDesc)}
   iMonadDesc       = record {DefaultMonad (monadVia bindDesc)}
 
+  iMonadRecurseDesc : MonadRec i o (Desc i o)
+  iMonadRecurseDesc .recurse x = Call x Ret
+
 --------------------------------------------------------------------------------
 
 private module Graph (@0 recDesc : ∀ x → Desc i o (o x)) where
@@ -136,10 +139,10 @@ private module @0 _ {recDesc : ∀ x → Desc i o (o x)} where
 
 record Total (i : Type) (o : @0 i → Type) (a : Type) : Type where
   no-eta-equality
+  constructor MkTotal
   field
     @0 desc : Desc i o a
-    -- implicit for better printing
-    {unTotal} :
+    unTotal :
       {@0 selfDesc : ∀ x → Desc i o (o x)} (let open Graph selfDesc)
       -- given a function that realises the result of 'selfDesc x'
       → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
@@ -149,6 +152,9 @@ record Total (i : Type) (o : @0 i → Type) (a : Type) : Type where
 open Total public
 
 {-# COMPILE AGDA2HS Total newtype #-}
+
+-- we can reason about program behavior only by the 'desc' field
+{-# DISPLAY MkTotal desc _ = desc #-}
 
 module _ (prog : RecProg' (Total i o) i o) where
 
@@ -183,7 +189,7 @@ module _ {@0 selfDesc : ∀ x → Desc i o (o x)} where opaque
 
   pureTotal' : (x : a)
     → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
-    → Eval (Ret x) s
+    → Eval (pure x) s
   pureTotal' x = λ _ g → x ⟨ invertRet g ⟩
   {-# COMPILE AGDA2HS pureTotal' inline #-}
 
@@ -199,24 +205,22 @@ module _ {@0 selfDesc : ∀ x → Desc i o (o x)} where opaque
 
   recurseTotal' : (x : i)
     → (self : Thunk (λ t → ∀ x → Eval (selfDesc x) t) s)
-    → Eval (Call x Ret) s
+    → Eval (recurse x) s
   recurseTotal' x = λ where self (con (_ , (g , refl))) → self .force x g
   {-# COMPILE AGDA2HS recurseTotal' inline #-}
 
 
 pureTotal : a → Total i o a
-pureTotal x = record
-  { desc = Ret x
-  ; unTotal = pureTotal' x
-  }
+pureTotal x = MkTotal (pure x) (pureTotal' x)
 {-# COMPILE AGDA2HS pureTotal #-}
 
 bindTotal : Total i o a → (a → Total i o b) → Total i o b
-bindTotal m k = record
-  { desc = m .desc >>= λ x → k x .desc
-  ; unTotal = bindTotal' m k
-  }
+bindTotal m k = MkTotal (m .desc >>= λ x → k x .desc) (bindTotal' m k)
 {-# COMPILE AGDA2HS bindTotal #-}
+
+recurseTotal : (x : i) → Total i o (o x)
+recurseTotal x = MkTotal (recurse x) (recurseTotal' x)
+{-# COMPILE AGDA2HS recurseTotal #-}
 
 instance
   iFunctorTotal     : Functor (Total i o)
@@ -228,10 +232,7 @@ instance
   iMonadTotal       = record {DefaultMonad (monadVia bindTotal)}
 
   iMonadRecTotal : MonadRec i o (Total i o)
-  iMonadRecTotal .recurse x = record
-    { desc = Call x Ret
-    ; unTotal = recurseTotal' x
-    }
+  iMonadRecTotal .recurse = recurseTotal
 
   {-# COMPILE AGDA2HS iFunctorTotal     #-}
   {-# COMPILE AGDA2HS iApplicativeTotal #-}
