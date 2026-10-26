@@ -23,7 +23,7 @@ library
     import:           warnings
     exposed-modules:  GenRec.Class
                     , GenRec.Direct
-                    , GenRec.Fueled
+                    , GenRec.DepthBound
                     , GenRec.Total
     other-modules:    GenRec.Example
     build-depends:    base >=4.21 && <5

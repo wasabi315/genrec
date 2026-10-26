@@ -1,10 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module GenRec.Total where
+module GenRec.Total
+  (Total(..), runTotal, runTotalInline)
+where
 
 import GHC.Exts (inline)
-import GenRec.Class (MonadRec, RecProg')
-
-import GenRec.Class
+import GenRec.Class (RecProg', Recurse(recurse))
 
 newtype Total i o a = MkTotal{unTotal :: (i -> o) -> a}
 
@@ -44,6 +44,6 @@ instance Applicative (Total i o) where
 instance Monad (Total i o) where
     (>>=) = bindTotal
 
-instance MonadRec i o (Total i o) where
+instance Recurse i o (Total i o) where
     recurse = recurseTotal
 

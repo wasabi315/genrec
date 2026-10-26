@@ -6,10 +6,6 @@ open import GenRec.Class
 open import GenRec.Inline
 open import GenRec.Reflection
 
-{-# FOREIGN AGDA2HS
-import GenRec.Class
-#-}
-
 private
   variable
     i : Type
@@ -50,17 +46,19 @@ module _ (f : RecProg' (Direct i o) i o) where
   {-# COMPILE AGDA2HS runDirectOpen #-}
 
 
-pureDirect : a → Direct i o a
-pureDirect x = record
-  { unDirect = λ _ → x
-  }
-{-# COMPILE AGDA2HS pureDirect #-}
+private
+  pureDirect : a → Direct i o a
+  pureDirect x = record
+    { unDirect = λ _ → x
+    }
+  {-# COMPILE AGDA2HS pureDirect #-}
 
-bindDirect : Direct i o a → (a → Direct i o b) → Direct i o b
-bindDirect m k = record
-  { unDirect = λ self → k (m .unDirect self) .unDirect self
-  }
-{-# COMPILE AGDA2HS bindDirect #-}
+  bindDirect : Direct i o a → (a → Direct i o b) → Direct i o b
+  bindDirect m k = record
+    { unDirect = λ self → k (m .unDirect self) .unDirect self
+    }
+  {-# COMPILE AGDA2HS bindDirect #-}
+
 
 instance
   iFunctorDirect     : Functor (Direct i o)
@@ -71,10 +69,10 @@ instance
   iApplicativeDirect = record {DefaultApplicative (applicativeVia pureDirect bindDirect)}
   iMonadDirect       = record {DefaultMonad (monadVia bindDirect)}
 
-  iMonadRecDirect : MonadRec i o (Direct i o)
-  iMonadRecDirect .recurse x = record { unDirect = λ self → self x }
+  iRecurseDirect : Recurse i o (Direct i o)
+  iRecurseDirect .recurse x = record { unDirect = λ self → self x }
 
   {-# COMPILE AGDA2HS iFunctorDirect     #-}
   {-# COMPILE AGDA2HS iApplicativeDirect #-}
   {-# COMPILE AGDA2HS iMonadDirect       #-}
-  {-# COMPILE AGDA2HS iMonadRecDirect     #-}
+  {-# COMPILE AGDA2HS iRecurseDirect     #-}

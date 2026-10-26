@@ -14,10 +14,6 @@ open import GenRec.Class
 open import GenRec.Inline
 open import GenRec.Reflection
 
-{-# FOREIGN AGDA2HS
-import GenRec.Class
-#-}
-
 private
   variable
     i : Type
@@ -46,8 +42,8 @@ instance
   iApplicativeDesc = record {DefaultApplicative (applicativeVia pureDesc bindDesc)}
   iMonadDesc       = record {DefaultMonad (monadVia bindDesc)}
 
-  iMonadRecurseDesc : MonadRec i o (Desc i o)
-  iMonadRecurseDesc .recurse x = Call x Ret
+  iRecurseurseDesc : Recurse i o (Desc i o)
+  iRecurseurseDesc .recurse x = Call x Ret
 
 --------------------------------------------------------------------------------
 
@@ -155,6 +151,7 @@ open Total public
 
 -- we can reason about program behavior only by the 'desc' field
 {-# DISPLAY MkTotal desc _ = desc #-}
+{-# DISPLAY desc m = m            #-}
 
 module _ (prog : RecProg' (Total i o) i o) where
 
@@ -210,17 +207,19 @@ module _ {@0 selfDesc : ∀ x → Desc i o (o x)} where opaque
   {-# COMPILE AGDA2HS recurseTotal' inline #-}
 
 
-pureTotal : a → Total i o a
-pureTotal x = MkTotal (pure x) (pureTotal' x)
-{-# COMPILE AGDA2HS pureTotal #-}
+private
+  pureTotal : a → Total i o a
+  pureTotal x = MkTotal (pure x) (pureTotal' x)
+  {-# COMPILE AGDA2HS pureTotal #-}
 
-bindTotal : Total i o a → (a → Total i o b) → Total i o b
-bindTotal m k = MkTotal (m .desc >>= λ x → k x .desc) (bindTotal' m k)
-{-# COMPILE AGDA2HS bindTotal #-}
+  bindTotal : Total i o a → (a → Total i o b) → Total i o b
+  bindTotal m k = MkTotal (m .desc >>= λ x → k x .desc) (bindTotal' m k)
+  {-# COMPILE AGDA2HS bindTotal #-}
 
-recurseTotal : (x : i) → Total i o (o x)
-recurseTotal x = MkTotal (recurse x) (recurseTotal' x)
-{-# COMPILE AGDA2HS recurseTotal #-}
+  recurseTotal : (x : i) → Total i o (o x)
+  recurseTotal x = MkTotal (recurse x) (recurseTotal' x)
+  {-# COMPILE AGDA2HS recurseTotal #-}
+
 
 instance
   iFunctorTotal     : Functor (Total i o)
@@ -231,13 +230,13 @@ instance
   iApplicativeTotal = record {DefaultApplicative (applicativeVia pureTotal bindTotal)}
   iMonadTotal       = record {DefaultMonad (monadVia bindTotal)}
 
-  iMonadRecTotal : MonadRec i o (Total i o)
-  iMonadRecTotal .recurse = recurseTotal
+  iRecurseTotal : Recurse i o (Total i o)
+  iRecurseTotal .recurse = recurseTotal
 
   {-# COMPILE AGDA2HS iFunctorTotal     #-}
   {-# COMPILE AGDA2HS iApplicativeTotal #-}
   {-# COMPILE AGDA2HS iMonadTotal       #-}
-  {-# COMPILE AGDA2HS iMonadRecTotal    #-}
+  {-# COMPILE AGDA2HS iRecurseTotal     #-}
 
 --------------------------------------------------------------------------------
 

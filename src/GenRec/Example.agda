@@ -35,13 +35,14 @@ module Fib where
     {-# REWRITE caseNatSuc  #-}
 
 
-  fib' : RecProg Nat (λ _ → Nat)
-  fib' n =
-    caseNat n (pure 0) λ n →
-    caseNat n (pure 1) λ n → do
-      r ← recurse (suc n)
-      s ← recurse n
-      pure (r + s)
+  private
+    fib' : RecProg Nat (λ _ → Nat)
+    fib' n =
+      caseNat n (pure 0) λ n →
+      caseNat n (pure 1) λ n → do
+        r ← recurse (suc n)
+        s ← recurse n
+        pure (r + s)
   {-# COMPILE AGDA2HS fib' #-}
   {-# FOREIGN AGDA2HS {-# INLINE fib' #-} #-}
 
@@ -62,19 +63,20 @@ module Fib where
 module Quicksort where
   open import Haskell.Data.List
 
-  quicksort' : ⦃ Ord a ⦄ → RecProg (List a) λ _ → List a
-  quicksort' [] = pure []
-  quicksort' (x ∷ xs) = case partition (_<= x) xs of λ where
-    (small , big) → do
-      small' ← recurse small
-      big' ← recurse big
-      pure $ small' ++ x ∷ big'
+  private
+    quicksort' : ⦃ Ord a ⦄ → RecProg (List a) λ _ → List a
+    quicksort' [] = pure []
+    quicksort' (x ∷ xs) = case partition (_<= x) xs of λ where
+      (small , big) → do
+        small' ← recurse small
+        big' ← recurse big
+        pure $ small' ++ x ∷ big'
   {-# COMPILE AGDA2HS quicksort' #-}
   {-# FOREIGN AGDA2HS {-# INLINE quicksort' #-} #-}
 
-  quicksortFueled : ⦃ Ord a ⦄ → List a → Maybe (List a)
-  quicksortFueled xs = runFueledInline quicksort' (natToFuel 100) xs
-  {-# COMPILE AGDA2HS quicksortFueled #-}
+  quicksortDepthBound : ⦃ Ord a ⦄ → List a → Maybe (List a)
+  quicksortDepthBound xs = runDepthBoundInline quicksort' (natToDepth 100) xs
+  {-# COMPILE AGDA2HS quicksortDepthBound #-}
 
   module @0 _ ⦃ _ : Ord a ⦄ where
     open import Data.Nat hiding (_+_; _*_)
@@ -128,22 +130,23 @@ module Norm where
 
   {-# COMPILE AGDA2HS Expr deriving (Show) #-}
 
-  norm : RecProg Expr λ _ → Expr
-  norm (Atom s) = pure (Atom s)
-  norm (If (Atom s) th el) = do
-    th' ← recurse th
-    el' ← recurse el
-    pure (If (Atom s) th' el')
-  norm (If (If co th' el') th el) = do
-    e₁ ← recurse (If th' th el)
-    e₂ ← recurse (If el' th el)
-    recurse (If co e₁ e₂)
+  private
+    norm : RecProg Expr λ _ → Expr
+    norm (Atom s) = pure (Atom s)
+    norm (If (Atom s) th el) = do
+      th' ← recurse th
+      el' ← recurse el
+      pure (If (Atom s) th' el')
+    norm (If (If co th' el') th el) = do
+      e₁ ← recurse (If th' th el)
+      e₂ ← recurse (If el' th el)
+      recurse (If co e₁ e₂)
   {-# COMPILE AGDA2HS norm #-}
   {-# FOREIGN AGDA2HS {-# INLINE norm #-} #-}
 
-  normaliseFueled : Expr → Maybe Expr
-  normaliseFueled e = runFueledInline norm (natToFuel 100) e
-  {-# COMPILE AGDA2HS normaliseFueled #-}
+  normaliseDepthBound : Expr → Maybe Expr
+  normaliseDepthBound e = runDepthBoundInline norm (natToDepth 100) e
+  {-# COMPILE AGDA2HS normaliseDepthBound #-}
 
   private module @0 _ where
     open import Data.Nat hiding (_+_; _*_)

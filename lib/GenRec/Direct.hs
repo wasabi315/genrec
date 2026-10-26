@@ -1,10 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module GenRec.Direct where
+module GenRec.Direct
+  (Direct(..), runDirect, runDirectInline, runDirectOpen)
+where
 
 import GHC.Exts (inline)
-import GenRec.Class (MonadRec, RecProg')
-
-import GenRec.Class
+import GenRec.Class (RecProg', Recurse(recurse))
 
 newtype Direct i o a = Direct{unDirect :: (i -> o) -> a}
 
@@ -45,6 +45,6 @@ instance Applicative (Direct i o) where
 instance Monad (Direct i o) where
     (>>=) = bindDirect
 
-instance MonadRec i o (Direct i o) where
+instance Recurse i o (Direct i o) where
     recurse x = Direct (\ self -> self x)
 
