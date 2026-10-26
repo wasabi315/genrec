@@ -25,6 +25,7 @@ library
                     , GenRec.Direct
                     , GenRec.DepthBound
                     , GenRec.Total
+                    , GenRec.Exotic
     other-modules:    GenRec.Example
     build-depends:    base >=4.21 && <5
     hs-source-dirs:   lib
