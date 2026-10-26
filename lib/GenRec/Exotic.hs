@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module GenRec.Exotic
-  (FunList(..), sell, runFunList)
+  (FunList(..), sell, runFunList, hylo)
 where
 
 import GenRec.Class (RecProg', Recurse(recurse))
@@ -39,4 +39,11 @@ runFunList f = g
     h :: FunList i o a -> a
     h (Done x) = x
     h (More x m) = h m (g x)
+
+hylo ::
+     forall f i o . Traversable f => (f o -> o) -> (i -> f i) -> i -> o
+hylo alg coalg = runFunList fused
+  where
+    fused :: i -> FunList i o o
+    fused x = alg <$> traverse sell (coalg x)
 

@@ -68,3 +68,13 @@ module _ (f : RecProg' (FunList i o) i o) where
       h (Done x)   = x
       h (More x m) = h m (g x)
   {-# COMPILE AGDA2HS runFunList #-}
+
+
+module _ ⦃ _ : Traversable f ⦄ {i o : Type} where
+
+  hylo : (f o → o) → (i → f i) → i → o
+  hylo alg coalg = runFunList fused
+    where
+      fused : i → FunList i (λ _ → o) o
+      fused x = alg <$> traverse sell (coalg x)
+  {-# COMPILE AGDA2HS hylo #-}
